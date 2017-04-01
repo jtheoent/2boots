@@ -29,20 +29,14 @@
 #include "prog_flash.h"
 #include <avr/boot.h>
 
+void putch(char);
+
 /* page buffer ---------------------------------------------------- */
 uint8_t pagebuffer[SPM_PAGESIZE];
 
-
-/* address buffer */
-#ifdef LARGE_ADDR_SPACE
-uint32_t address;
-#else
-uint16_t address;
-#endif
-
 /* access to flash memory------------------------------------------ */
 
-void write_flash_page()
+void write_flash_page(uint16_t address)
 {
 	uint16_t i = 0;
 
@@ -55,6 +49,10 @@ void write_flash_page()
 	{
 		// Set up little-endian word.
 		uint16_t w = *((uint16_t*)(pagebuffer + i));
+    //putch( ((w>>12)&0xf) + 'a');
+    //putch( ((w>>8)&0xf) + 'a');
+    //putch( ((w>>4)&0xf) + 'a');
+    //putch( (w & 0xf) + 'a');
 		boot_page_fill (address + i, w);
 	}
 

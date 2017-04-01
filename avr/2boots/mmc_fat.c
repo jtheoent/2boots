@@ -37,13 +37,15 @@
 #include "mmc_fat.h"
 #include "prog_flash.h"
 
-#define MMC_CMD0_RETRY	(unsigned char)16
+void putch(char);
+void setup_uart();
+
 
 #ifdef MMC_CS
-
-static unsigned char cmd[6];
-
 /* ---[ SPI Interface ]---------------------------------------------- */
+
+static unsigned char cmd[6] = {0,0,0,0,0,0};
+//static unsigned char *cmd_ptr;
 
 static void spi_send_byte(unsigned char data)
 {
@@ -51,38 +53,39 @@ static void spi_send_byte(unsigned char data)
 	loop_until_bit_is_set(SPSR, SPIF); // wait for byte transmitted...
 }
 
+// delay 8 clocks, or get result
+static void spi_send_ff(void) {
+  spi_send_byte(0xFF);
+}
+
 static unsigned char send_cmd(void)
 {
 	unsigned char i;
-	unsigned char *buf;
-	
-	spi_send_byte(0xFF);      //Dummy delay 8 clocks
-	MMC_PORT &= ~(1<<MMC_CS); //MMC Chip Select -> Low (activate mmc)
-
-	/* send the 6 cmd bytes */
-	i=6;
-	buf = cmd;
-	while(i) {
-		spi_send_byte(*buf++);
-		i--;
-	}
-
 	unsigned char result;
 	
+	spi_send_ff();
+	MMC_PORT &= ~(1<<MMC_CS); //MMC Chip Select -> Low (activate mmc)
+
+	for (i=0; i<6; i++) { 
+		spi_send_byte(cmd[i]);
+	}
+
 	/* wait for response */
-	for(i=0; i<255; i++) {
+	for (i=0; i<255; i++) {
 	
- 		spi_send_byte(0xFF);
+ 		spi_send_ff();
 		result = SPDR;
 		
 		if ((result & 0x80) == 0)
-			break;
+      return(result);
 	}
 
-	return(result); // TimeOut !?
+	return(result); // TimeOut
 }
 
 /* ---[ MMC Interface ]---------------------------------------------- */
+
+#define MMC_CMD0_RETRY	(unsigned char)16
 
 //all MMC Commandos needed for reading a file from the card
 #define MMC_GO_IDLE_STATE 0
@@ -91,10 +94,10 @@ static unsigned char send_cmd(void)
 
 /* the sector buffer */
 uint8_t buff[512];
-
+uint8_t page_size = 0;
 
 /*			
-*		Call mmc_init one time after a card has been connected to the ï¿½C's SPI bus!
+*		Call mmc_init one time after a card has been connected to the µC's SPI bus!
 *	
 *		return values:
 *			MMC_OK:				MMC initialized successfully
@@ -103,65 +106,131 @@ uint8_t buff[512];
 */
 static inline unsigned char mmc_init(void)
 {
-	// the default after reset is already input
-	//SPI_DDR &= ~(1<<SPI_MISO);	//SPI Data Out -> Input
-	SPI_PORT |= 1<<SPI_SS;   //PB2 output: High (deselect other SPI chips)
+	//SPI_DDR &= ~(1<<SPI_MISO);                      //SPI Data Out, already default after reset
+	SPI_DDR  |= 1<<SPI_CLK | 1<<SPI_MOSI | 1<<SPI_SS; //SPI Data -> Output
+	MMC_DDR |= 1<<MMC_CS;                             //MMC Chip Select -> Output
 
-	SPI_DDR  |= 1<<SPI_CLK | 1<<SPI_MOSI | 1<<SPI_SS; // SPI Data -> Output
-	MMC_DDR |= 1<<MMC_CS; 	//MMC Chip Select -> Output
-	
-	
-	SPCR = 1<<SPE | 1<<MSTR | SPI_INIT_CLOCK; //SPI Enable, SPI Master Mode
+	SPCR = 1<<SPE | 1<<MSTR | SPI_INIT_CLOCK;         //SPI Enable, SPI Master Mode
+
+	SPI_PORT |= 1<<SPI_SS;                            //PB2 output: High (deselect other SPI chips)
 	
 	unsigned char i;
-	
-	i=10;
-	while(i) { //Pulse 80+ clocks to reset MMC
-		spi_send_byte(0xFF);	
- 		i--;
-	}
+
+  //Pulse 80+ clocks to reset MMC
+  for (i=0; i<=10; i++)
+		spi_send_ff();	
+
 
 	unsigned char res;
 
+  // CMD0
+
+  // mmc_idle; cmd[1..4] initilized to 0
 	cmd[0] = 0x40 + MMC_GO_IDLE_STATE;
-	cmd[1] = 0x00; cmd[2] = 0x00; cmd[3] = 0x00; cmd[4] = 0x00;	cmd[5] = 0x95;
-	
-	for (i=0; i<MMC_CMD0_RETRY; i++)
+	//cmd[1] = 0x00;
+  //cmd[2] = 0x00;
+  //cmd[3] = 0x00;
+  //cmd[4] = 0x00;
+  cmd[5] = 0x95;
+
+	for (i=0,res=0; i<MMC_CMD0_RETRY; i++)
 	{
-		res=send_cmd(); //store result of reset command, should be 0x01
-		
-		MMC_PORT |= 1<<MMC_CS; //MMC Chip Select -> High (deactivate mmc);
-      	spi_send_byte(0xFF);
-		if (res == 0x01)
+		res = send_cmd();     //store result of reset command, should be 0x01
+		if (res == 0x01)      //Response R1 from MMC (0x01: IDLE, The card is in idle state and running the initializing process.)
 			break;
 	}
-
-	if(i==MMC_CMD0_RETRY) return(MMC_TIMEOUT);
-
-	if (res != 0x01) //Response R1 from MMC (0x01: IDLE, The card is in idle state and running the initializing process.)
+	if (res != 0x01)
 		return(MMC_INIT);
 	
-	cmd[0]=0x40 + MMC_SEND_OP_COND;
+
+  // CMD8
+  
+	cmd[0] = 0x48;
+	//cmd[1] = 0x00;
+  //cmd[2] = 0x00;
+  cmd[3] = 0x01;
+  cmd[4] = 0xAA;
+  cmd[5] = 0x87;
+
+  //cmd_ptr = mmc_cmd8;    //JACK
+  //
+
+
+  res=send_cmd();
+	if (res != 0x01) return(MMC_INIT);
+	  //MMC_PORT &= ~(1<<MMC_CS); 
+  spi_send_ff();
+  spi_send_ff();
+  spi_send_ff();
+  spi_send_ff();
+
+
+		//MMC_PORT |= 1<<MMC_CS; spi_send_ff();
+
+  for (i = 0; i < 255; i++) {
+  //while(1) {
+
+	cmd[0] = 0x77;  // CMD55
+	//cmd[1] = 0x00; cmd[2] = 0x00;
+  cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x87;
+  res=send_cmd();
+	if (res != 0x01) return(MMC_INIT);
+
+		//MMC_PORT |= 1<<MMC_CS; spi_send_ff();
+
+
+  // ACDM41
+  
+	cmd[0] = 0x69;
+	cmd[1] = 0x40; cmd[2] = 0x10; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0xCD;    // SDHC 3.2 - 3.3v
+	// JACK cmd[1] = 0x40; cmd[2] = 0x00; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x77;
+	// JACK cmd[1] = 0x00; cmd[2] = 0x10; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x5F;    // SD 3.2 - 3.3v
+	// JACK cmd[1] = 0x00; cmd[2] = 0x00; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0xE5;
+  res=send_cmd();
+
+		//MMC_PORT |= 1<<MMC_CS; spi_send_ff();
+
+  /*
+	cmd[0] = 0x40 + MMC_SEND_OP_COND;
+  res=send_cmd();
+		MMC_PORT |= 1<<MMC_CS; spi_send_ff();
+  */
+
+  //if (res == 0 || res == 5) break;
+  if (res == 0 ) break;
+
+  }
+
+  /*
+	cmd[0] = 0x50;   // CMD10 block length 512
+	cmd[1] = 0x00; cmd[2] = 0x00; cmd[3] = 0x02; cmd[4] = 0x00; cmd[5] = 0xFF;
+  //set_cmd(0x00000200);
+  res=send_cmd(); //store result of reset command, should be 0x01
+		MMC_PORT |= 1<<MMC_CS; spi_send_byte(0xFF);
+    */
 		
+	SPCR = 1<<SPE | 1<<MSTR | SPI_READ_CLOCK; //SPI Enable, SPI Master Mode   // possibly comment out?
+  return(MMC_OK);
+/*
 //May be this becomes an endless loop ?
 //Counting i from 0 to 255 and then timeout
-//was too SHORT for some of my cards !
-	while(send_cmd() != 0) {
-		MMC_PORT |= 1<<MMC_CS; //MMC Chip Select -> High (deactivate mmc);
+//was to SHORT for some of my cards !
+  while(send_cmd() != 0) {
+		MMC_PORT |= 1<<MMC_CS; //MMC Chip Select -> High (deactivate);
 		spi_send_byte(0xFF);
 	}
-	
 	return(MMC_OK);
+  */
 }
 
-static inline unsigned char wait_start_byte(void)
+static unsigned char wait_start_byte(void)
 {
 	unsigned char i;
 	
 	i=255;
 	do {
-		spi_send_byte(0xFF);
-		if(SPDR == 0xFE) return MMC_OK;
+		spi_send_ff();
+		if (SPDR == 0xFE) return MMC_OK;
 	} while(--i);
 	
 	return MMC_NOSTARTBYTE;
@@ -180,18 +249,26 @@ static inline unsigned char wait_start_byte(void)
  */
 static unsigned char mmc_start_read_block(unsigned long adr)
 {
+
+  /*    MMC support - use byte addressing, multiply sectors by 512
 	adr <<= 1;
-	
 	cmd[0] = 0x40 + MMC_READ_SINGLE_BLOCK;
 	cmd[1] = (adr & 0x00FF0000) >> 0x10;
 	cmd[2] = (adr & 0x0000FF00) >> 0x08;
 	cmd[3] = (adr & 0x000000FF);
 	cmd[4] = 0;
+  */
+  
+	adr <<= page_size;
 
-	SPCR = 1<<SPE | 1<<MSTR | SPI_READ_CLOCK; //SPI Enable, SPI Master Mode
-	
+	cmd[0] = 0x40 + MMC_READ_SINGLE_BLOCK;
+	cmd[1] = (adr & 0xFF000000) >> 0x18;
+	cmd[2] = (adr & 0x00FF0000) >> 0x10;
+	cmd[3] = (adr & 0x0000FF00) >> 0x08;
+	cmd[4] = (adr & 0x000000FF);
+
 	if (send_cmd() != 0x00 || wait_start_byte()) {
-		MMC_PORT |= 1<<MMC_CS; //MMC Chip Select -> High (deactivate mmc);
+		//MMC_PORT |= 1<<MMC_CS; //MMC Chip Select -> High (deactivate mmc);
 		return(MMC_CMDERROR); //wrong response!
 	}
 	
@@ -203,19 +280,19 @@ static unsigned char mmc_start_read_block(unsigned long adr)
 	len= 512;
 	
 	while (len) {
-		spi_send_byte(0xFF);
+		spi_send_ff();
 		*buf++ = SPDR;
 		len--;
 	}
 	
-	//mmc_stop_read_block
 	//read 2 bytes CRC (not used);
-	spi_send_byte(0xFF);
-	spi_send_byte(0xFF);
+	spi_send_ff();
+	spi_send_ff();
 	MMC_PORT |= 1<<MMC_CS; //MMC Chip Select -> High (deactivate mmc);
 	
 	return(MMC_OK);
 }
+
 
 /* ---[ FAT16 ]------------------------------------------------------ */
 
@@ -225,41 +302,6 @@ static uint16_t  RootDirRegionSize;
 static uint8_t   SectorsPerCluster;
 static uint16_t  FATRegionStartSec;
 
-static inline unsigned char fat16_init(void)
-{
-	mbr_t *mbr = (mbr_t*) buff;
-	vbr_t *vbr = (vbr_t*) buff;
-		
-	if (mmc_init() != MMC_OK) return 1;
-	
-    mmc_start_read_block(0);
-
-    // Try sector 0 as a bootsector
-	if ((vbr->bsFileSysType[0] == 'F') && (vbr->bsFileSysType[4] == '6'))
-	{
-		FATRegionStartSec = 0;
-	}
-	else // Try sector 0 as a MBR	
-	{     	 
-		FATRegionStartSec = mbr->sector.partition[0].sectorOffset;
-          
-		mmc_start_read_block(mbr->sector.partition[0].sectorOffset);
-	  
-        if ((vbr->bsFileSysType[0] != 'F') || (vbr->bsFileSysType[4] != '6'))
-		   return 2; // No FAT16 found
-     }
-    
-	SectorsPerCluster  			= vbr->bsSecPerClus; // 4
-	
-	// Calculation Algorithms
-	FATRegionStartSec			+= vbr->bsRsvdSecCnt;						// 6
-	RootDirRegionStartSec	 	= FATRegionStartSec + (vbr->bsNumFATs * vbr->bsNrSeProFAT16);		// 496	
-	RootDirRegionSize		 	= (vbr->bsRootEntCnt / 16); 						// 32
-	DataRegionStartSec 			= RootDirRegionStartSec + RootDirRegionSize;	// 528
-	
-	return 0;
-}
-
 static struct _file_s {
 	uint16_t startcluster;
  	uint16_t sector_counter;
@@ -267,48 +309,39 @@ static struct _file_s {
  	uint8_t* next;
 } file;
 
-static inline uint8_t fat16_readRootDirEntry(uint16_t entry_num) {
-	uint8_t direntry_in_sector;
- 	direntry_t *dir;
+
+static inline unsigned char fat16_init(void)
+{
+	mbr_t *mbr = (mbr_t*) buff;
+	vbr_t *vbr = (vbr_t*) buff;
 		
-	/* Check for end of root dir region reached! */
-	if ((entry_num / 16) >= RootDirRegionSize)
-		return 0;
-
-	/* this finds the sector in which the entry will be saved */	
-	uint32_t dirsector = RootDirRegionStartSec + entry_num / 16;
-
-	/* this is the offset inside the sector */
-	/* there are 16 entries in a sector, each 32 bytes long */
-    direntry_in_sector = (unsigned char) entry_num % 16;
-
-	/* get the sector into the buffer */
-	mmc_start_read_block(dirsector);
+	if (mmc_init() != MMC_OK) return 1;
 	
-	/* pointer to the direntry inside the buffer */
-	dir = (direntry_t *) buff + direntry_in_sector;
+  mmc_start_read_block(0);
 
-	if ((dir->name[0] == 0) || (dir->name[0] == 0xE5) || (dir->fstclust == 0))
-		return 0;
-
-	/* fill in the file structure */
-	file.startcluster = dir->fstclust;
-	file.size = dir->filesize;
-	file.sector_counter = 0;
-	file.next = buff + 512;
-
-	/* compare name */
-	uint8_t i = 0;
-	uint8_t match = 1;
-	for (i = 0; pagebuffer[i]; i++) { 
-	  match &= (pagebuffer[i] == dir->name[i]);
+  // Try sector 0 as a bootsector
+	if ((vbr->bsFileSysType[0] == 'F') && (vbr->bsFileSysType[4] == '6'))
+	{
+		FATRegionStartSec = 0;
 	}
-	if (!(match && i)) return 0;
+	else // Try sector 0 as a MBR	
+	{     	 
+		FATRegionStartSec = mbr->sector.partition[0].sectorOffset;
+
+		mmc_start_read_block(mbr->sector.partition[0].sectorOffset);
+        if ((vbr->bsFileSysType[0] != 'F') || (vbr->bsFileSysType[4] != '6')) {
+		      return 2; // No FAT16 found
+        }
+     }
+    
+	SectorsPerCluster     = vbr->bsSecPerClus; // 4
 	
-	/* match ending, seach for HEX => return 1, or EEP => return 2*/
-	if (dir->name[9] != 'E') return 0;
-	if (dir->name[8] == 'H' && dir->name[10] == 'X') return 1;
-	if (dir->name[8] == 'E' && dir->name[10] == 'P') return 2; //Removing this results in a larger text section
+	// Calculation Algorithms
+	FATRegionStartSec    += vbr->bsRsvdSecCnt;						// 6
+	RootDirRegionStartSec	= FATRegionStartSec + (vbr->bsNumFATs * vbr->bsNrSeProFAT16);		// 496	
+	RootDirRegionSize		 	= (vbr->bsRootEntCnt / 16); 						// 32
+	DataRegionStartSec    = RootDirRegionStartSec + RootDirRegionSize;	// 528
+	
 	return 0;
 }
 
@@ -317,7 +350,7 @@ static void inline fat16_readfilesector()
 	uint16_t clusteroffset;
 	uint8_t currentfatsector;
 	uint8_t temp, secoffset;
-	uint32_t templong;
+
 	uint16_t cluster = file.startcluster;
 	
 	fatsector_t *fatsector = (fatsector_t*) buff;
@@ -329,8 +362,8 @@ static void inline fat16_readfilesector()
 	temp = SectorsPerCluster >> 1;
 	while(temp) {
 		clusteroffset >>= 1;
-        temp >>= 1;
-    }
+		temp >>= 1;
+    	}
 
 	currentfatsector = 0xFF;
 	while (clusteroffset)
@@ -348,7 +381,7 @@ static void inline fat16_readfilesector()
 		clusteroffset--;
 	}
 
-	templong = cluster - 2;
+	uint32_t templong = cluster - 2;
 	temp = SectorsPerCluster>>1;
 	while(temp) {
 		templong <<= 1;	
@@ -373,15 +406,12 @@ static uint8_t file_read_byte() {	// read a byte from the open file from the mmc
 	return *file.next++;
 }
 
-static char gethexnib(char a) {
-	if(a >= 'a') {
-		return (a - 'a' + 0x0a);
-	} else if(a >= 'A') {
-		return (a - 'A' + 0x0a);
-	} else if(a >= '0') {
-		return(a - '0');
-	}
-	return a;
+static char inline gethexnib(char a) {
+  a = a & 0x1f;
+  if (a >= 0x10)
+    return a - 0x10;      // 0-9
+  else
+    return a - 1 + 0x0a;  // A-F, a-f
 }
 
 static uint8_t file_read_hex(void) {
@@ -389,10 +419,10 @@ static uint8_t file_read_hex(void) {
 }
 
 static inline void read_hex_file(void) {
-	// read file and convert it from intel hex and flash it
-    uint8_t num_flash_words = 0;
+	// read current file and convert it from intel hex and flash it, all in the same function
+	uint8_t num_flash_words = 0;
 	uint8_t* out = pagebuffer;
-    address = 0;
+	uint16_t address = 0;
 	while (file.size)
 	{
 		if (num_flash_words)
@@ -403,9 +433,9 @@ static inline void read_hex_file(void) {
 		
 			// if pagebuffer is full
 			if (out - pagebuffer == SPM_PAGESIZE) {
-			    // write page
-			    write_flash_page();
-			    address += SPM_PAGESIZE;
+        // write page
+        write_flash_page(address);
+        address += SPM_PAGESIZE;
 				out = pagebuffer;
 			}
 		} 
@@ -413,59 +443,89 @@ static inline void read_hex_file(void) {
 		{
 			// skip bytes until we find another ':'
 			if (file_read_byte() == ':') {
-				num_flash_words = file_read_hex();
-				file.next+=4; /* skip 4 bytes */
-#ifdef LARGE_ADDR_SPACE
-				uint8_t recordt = file_read_hex();
-				if (recordt == 0) continue;
-				else if (recordt == 1) break;
-				else num_flash_words = 0;
-#else
-				if (file_read_hex()) break;
-#endif
+				num_flash_words = file_read_hex();  // number of words on line
+				file.next+=4;                       // skip 4 bytes of address
+				if (file_read_hex()) break;         // 00 for data, 01 end of file
 			}
 		}
 	}
-	if (out != pagebuffer) write_flash_page();
+	if (out != pagebuffer) write_flash_page(address);
 }
 
-void mmc_updater() {
-	uint16_t entrycounter = 0;
+
+/* ----[ directory entry checks ]--------------------------------------------------- */
+
+static inline void check_file(direntry_t * dir) {
+
+	/* if file is empty, return */
+	if ((dir->fstclust == 0))
+		return;
+
+	/* fill in the file structure */
+	file.startcluster = dir->fstclust;
+	file.size = dir->filesize;
+	file.sector_counter = 0;
+	file.next = buff + 512; /* this triggers a new sector load when reading first byte... */
+
+	// compare name to EEPROM
 	uint8_t i = 0;
 	uint8_t ch =0;
-	
-	/* read board name from eeprom to pagebuffer */
-	while(i<8) {
+	do {
+    
 #if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
 		while(EECR & (1<<EEPE));
 		EEAR = (uint16_t)(void *)E2END -i;
 		EECR |= (1<<EERE);
-		ch =EEDR;
+		ch = EEDR;
 #else
 		ch = eeprom_read_byte((void *)E2END - i);
 #endif
-		if( ch == 0xFF) break;
-		pagebuffer[i] = ch;
+		//if( ch == 0xFF) break;
+		if( ch != dir->name[i]) return;
 		i++;
-	}
-	pagebuffer[i] = '\0';
-	
-	if (i) {
-		/* we have found a board name! 		   */
-		/* now go on and see if we find a      */
-		/* file on mmc with the same name...   */
-		
-		/* first, init mmc / fat */
-	   	if (fat16_init() != 0) return;
+	} while (i < 11);
+	//} while (i < 8);
 
-		/* for each file in ROOT... */
-		for (entrycounter=0; entrycounter<512; entrycounter++)
+	// match ending, seach for HEX => return 1
+  /*
+	if (dir->name[8] != 'H') return;
+	if (dir->name[9] != 'E') return;
+	if (dir->name[10] != 'X') return;
+  */
+	
+	/* this is our file, program it to flash */
+	read_hex_file();
+}
+
+
+
+void mmc_updater() {
+	/* first, init mmc and fat */
+
+  if (fat16_init() != 0) return;	
+
+	uint32_t dirsector = RootDirRegionStartSec;
+
+  //setup_uart();
+  //putch('>');
+
+	/* go check all files in the Root of the MMC */
+	do {
+		/* get the sector (16 dir entries) into the buff */
+		mmc_start_read_block(dirsector);
+
+		/* check them one after the other */
+		uint8_t i;
+		for (i = 0; i < 16; i++)
 		{
-			/* skip all unimportant files */
-			i = fat16_readRootDirEntry(entrycounter);
-			if (i == 1)	read_hex_file();
-		}	
-	}
+      //putch('f');
+			direntry_t* dir = (direntry_t *) buff + i;
+			check_file(dir);
+		}
+
+		dirsector++;
+
+	} while(--RootDirRegionSize);
 }
 
 #endif

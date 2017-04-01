@@ -1,7 +1,6 @@
 /**********************************************************/
-/* board-arduino.c                                        */
+/* board-arduino.h                                        */
 /* Copyright (c) 2010 by thomas seiler                    */
-/* 2boots board file for arduino boards                   */
 /* -------------------------------------------------------*/
 /*                                                        */
 /* This program is free software; you can redistribute it */
@@ -25,60 +24,40 @@
 /* http://www.fsf.org/licenses/gpl.txt                    */
 /**********************************************************/
 
-/* which version to use ?
- *
- * use ...-PD4.hex for:
- *  - Arduino with Ethernet Shield
- *  - Arduino ETH
- *
- * use ...-??? for:
- *  - Sparkfun SD shield
+
+#ifndef _board_h_
+#define _board_h_
+
+/* define BAUD_RATE
+ * This is the baud rate for the serial port.
+ * The original Makefile seemed to use 19200 by default, and
+ * 57600 if the target was a atmega328p or atmega1280
  */
-
-
-
-/* some includes */
-#include <inttypes.h>
-#include <avr/io.h>
-#include "stk500v1.h"
-#include "mmc_fat.h"
-
-/* function prototype */
-void main (void) __attribute__ ((naked,section (".init9")));
-
-/* some variables */
-const void (*app_start)(void) = 0x0000;
-uint8_t reset_reason = 0;
-
-/* main program starts here */
-void main(void)
-{
-	/* here we learn how we were reset */
-	reset_reason = MCUSR;
-	MCUSR = 0;
-
-	/* stop watchdog */
-	WDTCSR |= _BV(WDCE) | _BV(WDE);
-	WDTCSR = 0;
-
-	/* start app right ahead if this was not an external reset */
-	/* this means that all the code below this line is only executed on external reset */
-	if ((!(reset_reason & _BV(EXTRF))) && (!(reset_reason & _BV(PORF)))) app_start();
-     
-	/* this is needed because of the __attribute__ naked, section .init 9 */
-	/* from now, we can call functions :-) */
-	asm volatile ( "clr __zero_reg__" );
-	SP=RAMEND;
-
-	stk500v1();
-
-#ifdef MMC_CS
-	mmc_updater();
+#if   defined(__AVR_ATmega328P__) || defined(__AVR_ATmega1280__)
+ #define BAUD_RATE 57600
+ #if F_CPU <= 8000000L
+  #define DOUBLE_SPEED
+ #endif
+#else
+ #define BAUD_RATE 19200
 #endif
 
-	/* we reset via watchdog in order to reset all the registers to their default values */
-	WDTCSR = _BV(WDE);
-	while (1); // 16 ms
-}
 
-/* end of file board-arduino.c */
+/* define MAX_TIME_COUNT
+ * This is the maximum amount of time that the bootloader waits for
+ * serial activity before launching the main_app.
+ * The original Makefile seemed to use  F_CPU>>4 in all cases, except for
+ * ng and lillypad, where F_CPU>>1 was used. (which is longer!)
+ * I think using F_CPU>>4 for all board is ok for this generic arduino header.
+ */
+#define MAX_TIME_COUNT F_CPU>>4
+
+/* LED
+ * This will be used to blink a LED during flashing
+ *
+ */
+
+#define LED_PORT
+#define LED_PIN
+
+#endif
