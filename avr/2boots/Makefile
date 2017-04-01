@@ -1,5 +1,5 @@
 # 2boots Makefile
-# (c) 2011 thomas seiler      (thseiler@gmail.com)
+# (c) 2011,2012 thomas seiler      (thseiler@gmail.com)
 #
 
 # 'all' is the default target: 
@@ -13,15 +13,20 @@
 CC       = avr-gcc
 OBJCOPY  = avr-objcopy
 OBJDUMP  = avr-objdump
-OPTIMIZE = -Os -fwhole-file -flto -funsigned-char -fno-split-wide-types -fno-inline-small-functions -mcall-prologues -ffunction-sections -fdata-sections -ffreestanding -fno-jump-tables
-AVRSIZE  = avr-size
+OPTIMIZE = -Os -funsigned-char -fno-split-wide-types -fno-inline-small-functions -mcall-prologues -ffunction-sections -fdata-sections -ffreestanding -fno-jump-tables -fno-tree-scev-cprop -fno-split-wide-types
 
+AVRSIZE  = avr-size
 override CFLAGS  = -g -Wall $(OPTIMIZE) -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS)
-override LDFLAGS = -Wl,$(LDSECTION) -Wl,--relax -nostartfiles -Wl,--gc-sections
+override LDFLAGS = -Wl,$(LDSECTION) -Wl,--relax -nostartfiles -Wl,-gc-sections
+
+# setup avrdude isp tool
+ISPTOOL = avrispmkII
+ISPPORT = usb
+ISPSPEED = -b 115200
 
 # these are our actual source files
 # the BOARD variable will be replaced later, depending on which board is beeing compiled
-SRC = $(BOARD).c stk500v1.c mmc_fat.c prog_flash.c
+SRC = $(BOARD).c mmc_fat.c stk500v1.c prog_flash.c
 
 # the 'all' rule should build 2boots for all supported boards
 # to create one target per board-*.c file we use a $(wildcard... ) rule
@@ -38,37 +43,14 @@ buildfolder:
 # To compile 2boot twice for a given board (i.e. two frequencies), simply
 # separate the arguments with a space
 
-#default for any unknown board
-board-%: FCPUS = 16000000L
-board-%: MCUS = atmega328p
-board-%: MMC_CSS = nommc
-
 #arduino
-board-arduino: FCPUS = 8000000L 16000000L
-board-arduino: MCUS = atmega168 atmega328p atmega1280
-board-arduino: MMC_CSS = nommc PD4
+board-arduino: FCPUS = 6250000L
+board-arduino: MCUS = atmega328p
+board-arduino: MMC_CSS = PC1
 
-#lilypad
-board-lilypad: FCPUS = 8000000L
-board-lilypad: MCUS = atmega168
-board-lilypad: MMC_CSS = nommc
-
-#stalker:
-board-stalker: FCPUS = 8000000L
-board-stalker: MCUS = atmega328p
-board-stalker: MMC_CSS = PB1 PB2
-
-#ftthhead
-board-ftthhead: FCPUS = 8000000L
-board-ftthhead: MCUS = atmega328p
-board-ftthhead: MMC_CSS = nommc
-
-#ftthcont
-board-ftthcont: FCPUS = 8000000L
-board-ftthcont: MCUS  = atmega328p
-board-ftthcont: MMC_CSS = PB2
-
-
+board-arduino: FCPUS = 8000000L
+board-arduino: MCUS = atmega328p
+board-arduino: MMC_CSS = PB2 nommc
 
 # set certain variables per MCU
 
@@ -79,13 +61,12 @@ board-ftthcont: MMC_CSS = PB2
 2boots-atmega328p%:  LDSECTION := --section-start=.text=0x7800 
 
 #atmega1280:
-2boots-atmega1280%: LDSECTION := --section-start=.text=0x1F000
-2boots-atmega1280%: DEFS += -DLARGE_ADDR_SPACE
+2boots-atmega1280%: LDSECTION := --section-start=.text=0x1F000 
 
 
 # This rule finally builds 2boots.
 # The idea here is to learn the configuration from the make target name
-# This is done with the help of good old shell
+# This is done with the help of good old shell tools cut and awk
 2boots-%: MCU =  $(shell echo $@ | cut -d - -f 2 )
 2boots-%: FCPU = $(shell echo $@ | cut -d - -f 3 )
 2boots-%: MMC_CS = $(shell echo $@ | cut -d - -f 4)
@@ -133,10 +114,19 @@ clean:
 size-report:
 	@echo -----[Size reports]----------------------------------------
 	@echo 
-	@$(AVRSIZE) build/*.elf
+	@$(AVRSIZE) build/*.hex
 
-# This section finally creates targets for all combinations of boards, mcus, mmc-cs and frequencies:
-# because of evil make magic (secondary expansion) it should be the last rule
+
+
+ISPFUSES = avrdude -c $(ISPTOOL) -p $(MCU_TARGET) -P $(ISPPORT) $(ISPSPEED) \
+-e -u -U lock:w:0x3f:m -U efuse:w:0x$(EFUSE):m -U hfuse:w:0x$(HFUSE):m -U lfuse:w:0x$(LFUSE):m
+ISPFLASH = avrdude -c $(ISPTOOL) -p $(MCU_TARGET) -P $(ISPPORT) $(ISPSPEED) \
+-U flash:w:$(PROGRAM)_$(TARGET).hex -U lock:w:0x0f:m
+
+
+# This section finally creates targets for all combinations of boards, mcus,
+# mmc-cs and frequencies. Because of its evil make magic (secondary expansion)
+# it is best to keep this the last rule in the file:
 board-%: TARGETS = $(foreach currentmcu, $(MCUS) , $(foreach currentfreq, $(FCPUS), $(foreach currentmmccs, $(MMC_CSS), 2boots-$(currentmcu)-$(currentfreq)-$(currentmmccs)-$@.hex ) ) )
 .SECONDEXPANSION:
 board-%:  $$(TARGETS) ;

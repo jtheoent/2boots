@@ -68,7 +68,7 @@ static unsigned char send_cmd(void)
 	}
 
 	unsigned char result;
-	
+
 	/* wait for response */
 	for(i=0; i<255; i++) {
 	
@@ -94,7 +94,7 @@ uint8_t buff[512];
 
 
 /*			
-*		Call mmc_init one time after a card has been connected to the ï¿½C's SPI bus!
+*		Call mmc_init one time after a card has been connected to the µC's SPI bus!
 *	
 *		return values:
 *			MMC_OK:				MMC initialized successfully
@@ -110,7 +110,6 @@ static inline unsigned char mmc_init(void)
 	SPI_DDR  |= 1<<SPI_CLK | 1<<SPI_MOSI | 1<<SPI_SS; // SPI Data -> Output
 	MMC_DDR |= 1<<MMC_CS; 	//MMC Chip Select -> Output
 	
-	
 	SPCR = 1<<SPE | 1<<MSTR | SPI_INIT_CLOCK; //SPI Enable, SPI Master Mode
 	
 	unsigned char i;
@@ -124,14 +123,14 @@ static inline unsigned char mmc_init(void)
 	unsigned char res;
 
 	cmd[0] = 0x40 + MMC_GO_IDLE_STATE;
-	cmd[1] = 0x00; cmd[2] = 0x00; cmd[3] = 0x00; cmd[4] = 0x00;	cmd[5] = 0x95;
+	cmd[1] = 0x00; cmd[2] = 0x00; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x95;
 	
 	for (i=0; i<MMC_CMD0_RETRY; i++)
 	{
 		res=send_cmd(); //store result of reset command, should be 0x01
-		
+
 		MMC_PORT |= 1<<MMC_CS; //MMC Chip Select -> High (deactivate mmc);
-      	spi_send_byte(0xFF);
+      	 	spi_send_byte(0xFF);
 		if (res == 0x01)
 			break;
 	}
@@ -145,16 +144,16 @@ static inline unsigned char mmc_init(void)
 		
 //May be this becomes an endless loop ?
 //Counting i from 0 to 255 and then timeout
-//was too SHORT for some of my cards !
+//was to SHORT for some of my cards !
 	while(send_cmd() != 0) {
-		MMC_PORT |= 1<<MMC_CS; //MMC Chip Select -> High (deactivate mmc);
+		MMC_PORT |= 1<<MMC_CS; //MMC Chip Select -> High (deactivate);
 		spi_send_byte(0xFF);
 	}
 	
 	return(MMC_OK);
 }
 
-static inline unsigned char wait_start_byte(void)
+static unsigned char wait_start_byte(void)
 {
 	unsigned char i;
 	
@@ -225,6 +224,13 @@ static uint16_t  RootDirRegionSize;
 static uint8_t   SectorsPerCluster;
 static uint16_t  FATRegionStartSec;
 
+static struct _file_s {
+	uint16_t startcluster;
+ 	uint16_t sector_counter;
+ 	uint32_t size;
+ 	uint8_t* next;
+} file;
+
 static inline unsigned char fat16_init(void)
 {
 	mbr_t *mbr = (mbr_t*) buff;
@@ -260,64 +266,12 @@ static inline unsigned char fat16_init(void)
 	return 0;
 }
 
-static struct _file_s {
-	uint16_t startcluster;
- 	uint16_t sector_counter;
- 	uint32_t size;
- 	uint8_t* next;
-} file;
-
-static inline uint8_t fat16_readRootDirEntry(uint16_t entry_num) {
-	uint8_t direntry_in_sector;
- 	direntry_t *dir;
-		
-	/* Check for end of root dir region reached! */
-	if ((entry_num / 16) >= RootDirRegionSize)
-		return 0;
-
-	/* this finds the sector in which the entry will be saved */	
-	uint32_t dirsector = RootDirRegionStartSec + entry_num / 16;
-
-	/* this is the offset inside the sector */
-	/* there are 16 entries in a sector, each 32 bytes long */
-    direntry_in_sector = (unsigned char) entry_num % 16;
-
-	/* get the sector into the buffer */
-	mmc_start_read_block(dirsector);
-	
-	/* pointer to the direntry inside the buffer */
-	dir = (direntry_t *) buff + direntry_in_sector;
-
-	if ((dir->name[0] == 0) || (dir->name[0] == 0xE5) || (dir->fstclust == 0))
-		return 0;
-
-	/* fill in the file structure */
-	file.startcluster = dir->fstclust;
-	file.size = dir->filesize;
-	file.sector_counter = 0;
-	file.next = buff + 512;
-
-	/* compare name */
-	uint8_t i = 0;
-	uint8_t match = 1;
-	for (i = 0; pagebuffer[i]; i++) { 
-	  match &= (pagebuffer[i] == dir->name[i]);
-	}
-	if (!(match && i)) return 0;
-	
-	/* match ending, seach for HEX => return 1, or EEP => return 2*/
-	if (dir->name[9] != 'E') return 0;
-	if (dir->name[8] == 'H' && dir->name[10] == 'X') return 1;
-	if (dir->name[8] == 'E' && dir->name[10] == 'P') return 2; //Removing this results in a larger text section
-	return 0;
-}
-
 static void inline fat16_readfilesector()
 {
 	uint16_t clusteroffset;
 	uint8_t currentfatsector;
 	uint8_t temp, secoffset;
-	uint32_t templong;
+
 	uint16_t cluster = file.startcluster;
 	
 	fatsector_t *fatsector = (fatsector_t*) buff;
@@ -329,8 +283,8 @@ static void inline fat16_readfilesector()
 	temp = SectorsPerCluster >> 1;
 	while(temp) {
 		clusteroffset >>= 1;
-        temp >>= 1;
-    }
+		temp >>= 1;
+    	}
 
 	currentfatsector = 0xFF;
 	while (clusteroffset)
@@ -348,7 +302,7 @@ static void inline fat16_readfilesector()
 		clusteroffset--;
 	}
 
-	templong = cluster - 2;
+	uint32_t templong = cluster - 2;
 	temp = SectorsPerCluster>>1;
 	while(temp) {
 		templong <<= 1;	
@@ -389,10 +343,10 @@ static uint8_t file_read_hex(void) {
 }
 
 static inline void read_hex_file(void) {
-	// read file and convert it from intel hex and flash it
-    uint8_t num_flash_words = 0;
+	// read current file and convert it from intel hex and flash it, all in the same function
+	uint8_t num_flash_words = 0;
 	uint8_t* out = pagebuffer;
-    address = 0;
+	uint16_t address = 0;
 	while (file.size)
 	{
 		if (num_flash_words)
@@ -404,7 +358,7 @@ static inline void read_hex_file(void) {
 			// if pagebuffer is full
 			if (out - pagebuffer == SPM_PAGESIZE) {
 			    // write page
-			    write_flash_page();
+			    write_flash_page(address);
 			    address += SPM_PAGESIZE;
 				out = pagebuffer;
 			}
@@ -415,27 +369,32 @@ static inline void read_hex_file(void) {
 			if (file_read_byte() == ':') {
 				num_flash_words = file_read_hex();
 				file.next+=4; /* skip 4 bytes */
-#ifdef LARGE_ADDR_SPACE
-				uint8_t recordt = file_read_hex();
-				if (recordt == 0) continue;
-				else if (recordt == 1) break;
-				else num_flash_words = 0;
-#else
 				if (file_read_hex()) break;
-#endif
 			}
 		}
 	}
-	if (out != pagebuffer) write_flash_page();
+	if (out != pagebuffer) write_flash_page(address);
 }
 
-void mmc_updater() {
-	uint16_t entrycounter = 0;
+
+/* ----[ directory entry checks ]--------------------------------------------------- */
+
+static inline void check_file(direntry_t * dir) {
+
+	/* if file is empty, return */
+	if ((dir->fstclust == 0))
+		return;
+
+	/* fill in the file structure */
+	file.startcluster = dir->fstclust;
+	file.size = dir->filesize;
+	file.sector_counter = 0;
+	file.next = buff + 512; /* this triggers a new sector load when reading first byte... */
+
+	/* compare name to EEPROM */
 	uint8_t i = 0;
 	uint8_t ch =0;
-	
-	/* read board name from eeprom to pagebuffer */
-	while(i<8) {
+	do {
 #if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
 		while(EECR & (1<<EEPE));
 		EEAR = (uint16_t)(void *)E2END -i;
@@ -445,27 +404,41 @@ void mmc_updater() {
 		ch = eeprom_read_byte((void *)E2END - i);
 #endif
 		if( ch == 0xFF) break;
-		pagebuffer[i] = ch;
+		if( ch != dir->name[i]) return;
 		i++;
-	}
-	pagebuffer[i] = '\0';
-	
-	if (i) {
-		/* we have found a board name! 		   */
-		/* now go on and see if we find a      */
-		/* file on mmc with the same name...   */
-		
-		/* first, init mmc / fat */
-	   	if (fat16_init() != 0) return;
+	} while (i < 8);
 
-		/* for each file in ROOT... */
-		for (entrycounter=0; entrycounter<512; entrycounter++)
+	/* match ending, seach for HEX => return 1 */
+	if (dir->name[8] != 'H') return;
+	if (dir->name[9] != 'E') return;
+	if (dir->name[10] != 'X') return;
+	
+	/* this is our file, program it to flash */
+	read_hex_file();
+}
+
+void mmc_updater() {
+	/* first, init mmc and fat */
+   	if (fat16_init() != 0) return;	
+
+	uint32_t dirsector = RootDirRegionStartSec;
+
+	/* go check all files in the Root of the MMC */
+	do {
+		/* get the sector (16 dir entries) into the buff */
+		mmc_start_read_block(dirsector);
+
+		/* check them one after the other */
+		uint8_t i;
+		for (i = 0; i < 16; i++)
 		{
-			/* skip all unimportant files */
-			i = fat16_readRootDirEntry(entrycounter);
-			if (i == 1)	read_hex_file();
-		}	
-	}
+			direntry_t* dir = (direntry_t *) buff + i;
+			check_file(dir);
+		}
+
+		dirsector++;
+
+	} while(--RootDirRegionSize);
 }
 
 #endif

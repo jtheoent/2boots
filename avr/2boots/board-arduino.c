@@ -1,7 +1,7 @@
 /**********************************************************/
 /* board-arduino.c                                        */
 /* Copyright (c) 2010 by thomas seiler                    */
-/* This file is based on the original Arduino Bootloader  */
+/* 2boots board file for arduino boards                   */
 /* -------------------------------------------------------*/
 /*                                                        */
 /* This program is free software; you can redistribute it */
@@ -25,10 +25,14 @@
 /* http://www.fsf.org/licenses/gpl.txt                    */
 /**********************************************************/
 
-/* which version to use ? 
+/* which version to use ?
  *
- * for the Arduino Ethernet Shield, use version -PD4-board-arduino
- * for the Sparkfun SD Card Shield, use version -...
+ * use ...-PD4.hex for:
+ *  - Arduino with Ethernet Shield
+ *  - Arduino ETH
+ *
+ * use ...-??? for:
+ *  - Sparkfun SD shield
  */
 
 
@@ -40,7 +44,7 @@
 #include "mmc_fat.h"
 
 /* function prototype */
-void main (void) __attribute__ ((naked,section (".init9"),externally_visible));
+void main (void) __attribute__ ((naked,section (".init9")));
 
 /* some variables */
 const void (*app_start)(void) = 0x0000;
@@ -59,18 +63,16 @@ void main(void)
 
 	/* start app right ahead if this was not an external reset */
 	/* this means that all the code below this line is only executed on external reset */
-	if (!(reset_reason & _BV(EXTRF))) app_start();
-
+	if ((!(reset_reason & _BV(EXTRF))) && (!(reset_reason & _BV(PORF)))) app_start();
+     
 	/* this is needed because of the __attribute__ naked, section .init 9 */
 	/* from now, we can call functions :-) */
 	asm volatile ( "clr __zero_reg__" );
 	SP=RAMEND;
 
-	/* try first serial, to not let the programmer timeout in case there is an MMC included */
 	stk500v1();
 
 #ifdef MMC_CS
-	/* then try the mmc, less time critical... */
 	mmc_updater();
 #endif
 
