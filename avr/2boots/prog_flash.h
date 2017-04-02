@@ -32,13 +32,13 @@
 #include <avr/io.h>   /* for SPM_PAGESIZE */
 #include <inttypes.h>
 
-extern uint8_t pagebuffer[SPM_PAGESIZE];
-void write_flash_page();
-
 #ifdef LARGE_ADDR_SPACE
-extern uint32_t address;
+typedef uint32_t flashAddress;
 #else
-extern uint16_t address;
+typedef uint16_t flashAddress;
 #endif
+
+extern uint8_t pagebuffer[SPM_PAGESIZE];
+void write_flash_page(flashAddress address);
 
 #endif

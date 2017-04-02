@@ -31,6 +31,7 @@
 #include <inttypes.h>
 #include "board.h"
 #include "stk500v1.h"
+#include "prog_flash.h"
 
 /* define this to loose a bit compatibility, but save a few bytes */
 #define MINIMALISTIC
@@ -289,9 +290,9 @@ static inline void handle_programmerVER(void) {
 	else putch(0x00);				// Covers various unnecessary responses we don't care about
 }
 
-static inline void handle_addr(void) {
-		address = *((uint16_t*) &pagebuffer[0]);
-		address = address << 1;	        // address * 2 -> byte location
+static inline flashAddress handle_addr(void) {
+		flashAddress address = *((uint16_t*) &pagebuffer[0]);
+		return address << 1;	        // address * 2 -> byte location
 }
 
 static inline void handle_spi() {
@@ -314,7 +315,7 @@ static inline void handle_sig() {
 	putch(SIGNATURE_2);	
 }
 
-static inline void handle_write() {
+static inline void handle_write(flashAddress address) {
 	uint8_t w;
 	if (flags.eeprom) {		                //Write to EEPROM one byte at a time
 		for(w=0;w<length.word;w++) {
@@ -330,11 +331,11 @@ static inline void handle_write() {
 			address++;
 		}
 	} else {					            //Write to FLASH one page at a time
-		write_flash_page();
+		write_flash_page(address);
 	}
 }
 
-static inline void handle_read() {
+static inline void handle_read(flashAddress address) {
 	uint16_t w = 0;
 	for (w=0;w < length.word;w++) {		        // Can handle odd and even lengths okay
 		if (flags.eeprom) {	                        // Byte access EEPROM read
@@ -365,6 +366,7 @@ void stk500v1() {
 	uint16_t w  = 0;
 	uint8_t ch = 0;
 	uint8_t firstok = 0;
+  flashAddress address = 0;
 
 	/* open serial port */
 	setup_uart();
@@ -436,11 +438,11 @@ void stk500v1() {
 			if (ch == '1') handle_programmerID();
 #endif
 			if (ch == 'A') handle_programmerVER();
-			if (ch == 'U') handle_addr();
+			if (ch == 'U') address = handle_addr();
 			if (ch == 'V') handle_spi();
 			if (ch == 'u') handle_sig();
-			if (ch == 'd') handle_write();
-			if (ch == 't') handle_read();
+			if (ch == 'd') handle_write(address);
+			if (ch == 't') handle_read(address);
 
 			// send end of response
 			putch(0x10);

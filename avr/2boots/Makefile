@@ -11,9 +11,11 @@
 
 # setup avr-gcc to compile very space efficient
 CC       = avr-gcc
+CC = /Applications/Arduino2.app/Contents/Java/hardware/tools/avr/bin/avr-gcc
 OBJCOPY  = avr-objcopy
 OBJDUMP  = avr-objdump
-OPTIMIZE = -Os -fwhole-file -flto -funsigned-char -fno-split-wide-types -fno-inline-small-functions -mcall-prologues -ffunction-sections -fdata-sections -ffreestanding -fno-jump-tables
+#OPTIMIZE = -Os -fwhole-file -flto -funsigned-char -fno-split-wide-types -fno-inline-small-functions -mcall-prologues -ffunction-sections -fdata-sections -ffreestanding -fno-jump-tables
+OPTIMIZE = -Os -funsigned-char -fno-split-wide-types -fno-inline-small-functions -mcall-prologues -ffunction-sections -fdata-sections -ffreestanding -fno-jump-tables -fno-tree-scev-cprop -fno-split-wide-types
 AVRSIZE  = avr-size
 
 override CFLAGS  = -g -Wall $(OPTIMIZE) -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS)
@@ -49,24 +51,24 @@ board-arduino: MCUS = atmega168 atmega328p atmega1280
 board-arduino: MMC_CSS = nommc PD4
 
 #lilypad
-board-lilypad: FCPUS = 8000000L
-board-lilypad: MCUS = atmega168
-board-lilypad: MMC_CSS = nommc
+#board-lilypad: FCPUS = 8000000L
+#board-lilypad: MCUS = atmega168
+#board-lilypad: MMC_CSS = nommc
 
 #stalker:
-board-stalker: FCPUS = 8000000L
-board-stalker: MCUS = atmega328p
-board-stalker: MMC_CSS = PB1 PB2
+board-stalker3: FCPUS = 8000000L
+board-stalker3: MCUS = atmega328p
+board-stalker3: MMC_CSS = PB2 nommc
 
 #ftthhead
-board-ftthhead: FCPUS = 8000000L
-board-ftthhead: MCUS = atmega328p
-board-ftthhead: MMC_CSS = nommc
+#board-ftthhead: FCPUS = 8000000L
+#board-ftthhead: MCUS = atmega328p
+#board-ftthhead: MMC_CSS = nommc
 
 #ftthcont
-board-ftthcont: FCPUS = 8000000L
-board-ftthcont: MCUS  = atmega328p
-board-ftthcont: MMC_CSS = PB2
+#board-ftthcont: FCPUS = 8000000L
+#board-ftthcont: MCUS  = atmega328p
+#board-ftthcont: MMC_CSS = PB2
 
 
 
