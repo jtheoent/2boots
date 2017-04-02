@@ -42,7 +42,7 @@ uint16_t address;
 
 /* access to flash memory------------------------------------------ */
 
-void write_flash_page()
+void write_flash_page(flashAddress address)
 {
 	uint16_t i = 0;
 
@@ -63,3 +63,6 @@ void write_flash_page()
 
 	boot_rww_enable ();
 }
+
+
+

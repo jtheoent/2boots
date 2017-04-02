@@ -345,7 +345,7 @@ static inline void read_hex_file(void) {
 	// read file and convert it from intel hex and flash it
     uint8_t num_flash_words = 0;
 	uint8_t* out = pagebuffer;
-    address = 0;
+    flashAddress address = 0;
 	while (file.size)
 	{
 		if (num_flash_words)
@@ -357,7 +357,7 @@ static inline void read_hex_file(void) {
 			// if pagebuffer is full
 			if (out - pagebuffer == SPM_PAGESIZE) {
 			    // write page
-			    write_flash_page();
+			    write_flash_page(address);
 			    address += SPM_PAGESIZE;
 				out = pagebuffer;
 			}
@@ -379,7 +379,7 @@ static inline void read_hex_file(void) {
 			}
 		}
 	}
-	if (out != pagebuffer) write_flash_page();
+	if (out != pagebuffer) write_flash_page(address);
 }
 
 /* ----[ directory entry checks ]--------------------------------------------------- */

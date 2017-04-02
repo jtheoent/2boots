@@ -44,56 +44,57 @@ extern uint8_t buff[512];
  #define DORD	DORD0
  #define MSTR	MSTR0
  #define CPOL	CPOL0
- #define CPHA	CPHA0
- #define SPR1	SPR01
- #define SPR0	SPR00
+ #define CPHA CPHA0
+ #define SPR1 SPR01
+ #define SPR0 SPR00
 
- #define SPSR	SPSR0
- #define SPIF	SPIF0
- #define WCOL	WCOL0
- #define SPI2X	SPI2X0
+ #define SPSR SPSR0
+ #define SPIF SPIF0
+ #define WCOL WCOL0
+ #define SPI2X SPI2X0
 
- #define SPDR	SPDR0
+ #define SPDR SPDR0
 #endif
 
 //Port & Pin definitions.
 #if defined (__AVR_ATmega128__) || defined (__AVR_ATmega1280__)
 #define SPI_PORT PORTB
 #define SPI_DDR  DDRB
-#define SPI_MISO PB3		//DataOut of MMC
-#define SPI_MOSI PB2		//DataIn of  MMC
-#define SPI_CLK  PB1		//Clock of MMC
-#define SPI_SS   PB0        //SS pin of SPI interface
+#define SPI_MISO PB3    //DataOut of MMC
+#define SPI_MOSI PB2    //DataIn of  MMC
+#define SPI_CLK  PB1    //Clock of MMC
+#define SPI_SS   PB0    //SS pin of SPI interface
 #else
 //Settings below are recommended for a MEGA168 and MEGA328
 #define SPI_PORT PORTB
 #define SPI_DDR  DDRB
-#define SPI_MISO	PB4		//DataOut of MMC
-#define SPI_MOSI	PB3		//DataIn of  MMC
-#define SPI_CLK  	PB5		//Clock of MMC
-#define SPI_SS          PB2             //SS pin of SPI interface
+#define SPI_MISO PB4    //DataOut of MMC
+#define SPI_MOSI PB3    //DataIn of  MMC
+#define SPI_CLK  PB5    //Clock of MMC
+#define SPI_SS   PB2    //SS pin of SPI interface
 #endif
 
 // These define the Pin, Port and DDR of the Chip Select to the MMC...
 // Used to be defined here, but is now in the Makefile 
-//#define MMC_CS		PB2		//also change MMC_PORT and MMC_DDR acordingly
+//#define MMC_CS  PB2  //also change MMC_PORT and MMC_DDR acordingly
 //#define MMC_PORT        PORTB
 //#define MMC_DDR         DDRB
 
 //Clockrate while initialisation / reading / writing
-#define SPI_INIT_CLOCK 1<<SPR1 | 1<<SPR0
-#define SPI_READ_CLOCK 0<<SPR1 | 0<<SPR0
-#define SPI_WRITE_CLOCK 1<<SPR1 | 0<<SPR0
+//#define SPI_INIT_CLOCK 1<<SPR1 | 1<<SPR0    // SPI2X 0: f/128
+#define SPI_INIT_CLOCK 0<<SPR1 | 1<<SPR0    // SPI2X 0: f/16
+#define SPI_READ_CLOCK 0<<SPR1 | 0<<SPR0    // SPI2X 0: f/4
+#define SPI_WRITE_CLOCK 1<<SPR1 | 0<<SPR0   // SPI2X 0: f/64
 
 #define SPI_DOUBLE_SPEED 0 //0: normal speed, 1: double speed
 
 
 // Result Codes
-#define MMC_OK 			0
+#define MMC_OK          0
 #define MMC_INIT        1
-#define MMC_NOSTARTBYTE	2
-#define MMC_CMDERROR	3
-#define MMC_TIMEOUT		4
+#define MMC_NOSTARTBYTE 2
+#define MMC_CMDERROR    3
+#define MMC_TIMEOUT     4
 
 
 /* ---[ FAT Structs ] --------------------------------------------- */
@@ -129,7 +130,7 @@ typedef union
 
 typedef struct
 {
-	uint8_t  		bsjmpBoot[3]; 		// 0-2   Jump to bootstrap (E.g. eb 3c 90; on i86: JMP 003E NOP. One finds either eb xx 90, or e9 xx xx. The position of the bootstrap varies.)
+	uint8_t     bsjmpBoot[3]; 		// 0-2   Jump to bootstrap (E.g. eb 3c 90; on i86: JMP 003E NOP. One finds either eb xx 90, or e9 xx xx. The position of the bootstrap varies.)
 	char    		bsOEMName[8]; 		// 3-10  OEM name/version (E.g. "IBM  3.3", "IBM 20.0", "MSDOS5.0", "MSWIN4.0".
 	uint16_t   	bsBytesPerSec;		// 11-12 Number of bytes per sector (512). Must be one of 512, 1024, 2048, 4096.
 	uint8_t			bsSecPerClus;		// 13    Number of sectors per cluster (1). Must be one of 1, 2, 4, 8, 16, 32, 64, 128.
