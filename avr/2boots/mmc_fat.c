@@ -41,9 +41,8 @@
 #define false 0
 
 #ifdef MMC_CS
-/* ---[ SPI Interface ]---------------------------------------------- */
 
-//static uint8_t cmd[6] = {0,0,0,0,0,0};
+/* ---[ SPI Interface ]---------------------------------------------- */
 
 static void spi_send_byte(uint8_t data)
 {
@@ -59,7 +58,6 @@ static void spi_send_ff(void) {
 
 
 static uint8_t send_cmd(uint8_t cmd, uint32_t params, uint8_t crc)
-//static uint8_t send_cmd(void)
 {
 	uint8_t i;
 	uint8_t result;
@@ -68,20 +66,16 @@ static uint8_t send_cmd(uint8_t cmd, uint32_t params, uint8_t crc)
 	MMC_PORT &= ~(1<<MMC_CS); //MMC Chip Select -> Low (activate mmc)
 
   spi_send_byte(cmd);
-	for (i=0; i<4; i++) { 
-    spi_send_byte(params >> 24);
-    params <<= 8;
-  }
+
+  spi_send_byte(params >> 24);
+  spi_send_byte(params >> 16);
+  spi_send_byte(params >> 8);
+  spi_send_byte(params);
+
   spi_send_byte(crc);
 
-  /*
-	for (i=0; i<6; i++) { 
-		spi_send_byte(cmd[i]);
-	}
-  */
-
 	// wait for response
-	for (i=0; i<255; i++) {
+	for (i=255;i;i--) {
 	
  		spi_send_ff();
 		result = SPDR;
@@ -136,24 +130,12 @@ static inline uint8_t mmc_init(void)
 
   // CMD0
 
-  /*
-  // mmc_idle; cmd[1..4] initilized to 0
-	cmd[0] = 0x40 + MMC_GO_IDLE_STATE;
-	//cmd[1] = 0x00;
-  //cmd[2] = 0x00;
-  //cmd[3] = 0x00;
-  //cmd[4] = 0x00;
-  cmd[5] = 0x95;
-  */
-
 	for (i=0,res=0; i<MMC_CMD0_RETRY; i++)
 	{
-		//res = send_cmd();     //store result of reset command, should be 0x01
     res = send_cmd( 0x40 + MMC_GO_IDLE_STATE, 0, 0x95);
 		if (res == 0x01)      //Response R1 from MMC (0x01: IDLE, The card is in idle state and running the initializing process.)
 			break;
 	}
-
 	if (res != 0x01)
 		return(MMC_INIT);
 
@@ -161,16 +143,6 @@ static inline uint8_t mmc_init(void)
 
   // CMD8
   
-  /*
-	cmd[0] = 0x40 + MMC_CMD8;
-	//cmd[1] = 0x00;
-  //cmd[2] = 0x00;
-  cmd[3] = 0x01;
-  cmd[4] = 0xAA;
-  cmd[5] = 0x87;
-  */
-
-  //res=send_cmd();
   res=send_cmd(0x40 + MMC_CMD8, 0x01aa, 0x87);
 
 	if (res != 0x01) return(MMC_INIT);
@@ -183,71 +155,43 @@ static inline uint8_t mmc_init(void)
 
 		//MMC_PORT |= 1<<MMC_CS; spi_send_ff();
 
-  // CMD55
 
   for (i = 0; i < 255; i++) {
     //while(1) {
 
-    /*
-    cmd[0] = 0x40 + MMC_CMD55;
-    //cmd[1] = 0x00; cmd[2] = 0x00;
-    cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x87;
-    */
-
-    //res=send_cmd();
+    // CMD55
     res=send_cmd(0x40 + MMC_CMD55, 0, 0x87);
     if (res != 0x01) return(MMC_INIT);
 
-      //MMC_PORT |= 1<<MMC_CS; spi_send_ff();
+      //MMC_PORT |= 1<<MMC_CS; spi_send_ff(); // delay
 
 
     // ACDM41
 
-    /*
-    cmd[0] = 0x40 + MMC_ACMD41;
-    cmd[1] = 0x40; cmd[2] = 0x10; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0xCD;    // SDHC 3.2 - 3.3v
-    // cmd[1] = 0x40; cmd[2] = 0x00; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x77;
-    // cmd[1] = 0x00; cmd[2] = 0x10; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x5F;    // SD 3.2 - 3.3v
-    res=send_cmd();
-    */
-    res = send_cmd(0x40 + MMC_ACMD41, 0x40100000, 0xcd);
+    res = send_cmd(0x40 + MMC_ACMD41, 0x40100000, 0xcd);  // 0x40100000:0xcd SDHC 3.2-3.3v, 0x40000000:0x77, 0x00100000:0x5f SD 3.2-3.3v
 
       //MMC_PORT |= 1<<MMC_CS; spi_send_ff();
 
 
     //if (res == 0 || res == 5) break;
     if (res == 0 ) break;
-
   }
 
-
-    /*
-    cmd[0] = 0x40 + MMC_SEND_OP_COND;
-    res=send_cmd();
-      MMC_PORT |= 1<<MMC_CS; spi_send_ff();
-    */
+  // CMD58 CRC?
+  // CMD10 block length 512
+  //res=send_cmd(0x40 + MMC_CMD10, 0x200, 0xff);
 
 
-  /*
-	cmd[0] = 0x50;   // CMD10 block length 512
-	cmd[1] = 0x00; cmd[2] = 0x00; cmd[3] = 0x02; cmd[4] = 0x00; cmd[5] = 0xFF;
-  //set_cmd(0x00000200);
-  res=send_cmd(); //store result of reset command, should be 0x01
-		MMC_PORT |= 1<<MMC_CS; spi_send_byte(0xFF);
-    */
-		
+  // else
+  //for (i-255;i;i--) {  // maybe too SHORT for some of cards!
+  //  if (res=send_cmd(0x40 + MMC_SEND_OP_COND, 0, 0) == 0)
+  //    break;
+  //  MMC_PORT |= 1<<MMC_CS; spi_send_ff(); spi_send_ff();
+  //}
+  //if (res) return MMC_INIT;
+
 	SPCR = 1<<SPE | 1<<MSTR | SPI_READ_CLOCK; //SPI Enable, SPI Master Mode   // possibly comment out?
   return(MMC_OK);
-/*
-//May be this becomes an endless loop ?
-//Counting i from 0 to 255 and then timeout
-//was to SHORT for some of my cards !
-  while(send_cmd() != 0) {
-		MMC_PORT |= 1<<MMC_CS; //MMC Chip Select -> High (deactivate);
-		spi_send_byte(0xFF);
-	}
-	return(MMC_OK);
-  */
 }
 
 
@@ -284,26 +228,9 @@ static inline uint8_t wait_start_byte(void) {
 static uint8_t mmc_start_read_block(uint32_t addr)
 {
 
-  /*    MMC support - use byte addressing, multiply sectors by 512
-	adr <<= 1;
-	cmd[0] = 0x40 + MMC_READ_SINGLE_BLOCK;
-	cmd[1] = (adr & 0x00FF0000) >> 0x10;
-	cmd[2] = (adr & 0x0000FF00) >> 0x08;
-	cmd[3] = (adr & 0x000000FF);
-	cmd[4] = 0;
-  */
-  
+  // MMC uses byte addressing, shift sectors by block size
 	addr <<= address_scale;
 
-  /*
-	cmd[0] = 0x40 + MMC_READ_SINGLE_BLOCK;
-	cmd[1] = (adr & 0xFF000000) >> 0x18;
-	cmd[2] = (adr & 0x00FF0000) >> 0x10;
-	cmd[3] = (adr & 0x0000FF00) >> 0x08;
-	cmd[4] = (adr & 0x000000FF);
-  */
-
-	//if (send_cmd() != 0x00 || wait_start_byte()) {
 	if (send_cmd(0x40 + MMC_READ_SINGLE_BLOCK, addr, 0) != 0x00 || wait_start_byte()) {
 		//MMC_PORT |= 1<<MMC_CS; //MMC Chip Select -> High (deactivate mmc);
 		return(MMC_CMDERROR); //wrong response!
