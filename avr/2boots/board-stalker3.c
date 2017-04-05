@@ -2,6 +2,7 @@
 /* board-arduino.c                                        */
 /* Copyright (c) 2010 by thomas seiler                    */
 /* 2boots board file for arduino boards                   */
+/* 2017 Changed boot sequence @jtheorent                  */
 /* -------------------------------------------------------*/
 /*                                                        */
 /* This program is free software; you can redistribute it */
@@ -31,6 +32,7 @@
 #include <avr/io.h>
 #include "stk500v1.h"
 #include "mmc_fat.h"
+#include "eeprom.h"
 
 /* function prototype */
 void main (void) __attribute__ ((naked,section (".init9"),externally_visible));
@@ -50,24 +52,60 @@ void main(void)
 	WDTCSR |= _BV(WDCE) | _BV(WDE);
 	WDTCSR = 0;
 
-	/* start app right ahead if this was not an external reset */
-	/* this means that all the code below this line is only executed on external reset */
-	if ((!(reset_reason & _BV(EXTRF))) && (!(reset_reason & _BV(PORF)))) app_start();
-     
-	/* this is needed because of the __attribute__ naked, section .init 9 */
-	/* from now, we can call functions :-) */
-	asm volatile ( "clr __zero_reg__" );
-	SP=RAMEND;
+#ifdef BOOT_TOGGLE  // eeprom flag forces bootloader to run
+  /*
+  #if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
+		while(EECR & (1<<EEPE));
+		EEAR = (uint16_t)(void *)EEPROM_TOGGLE_ADDR;
+		EECR |= (1<<EERE);
+		toggle = EEDR;
+  #else
+		toggle = eeprom_read_byte((void *)EEPROM_TOGGLE_ADDR);
+  #endif
+  */
+  uint8_t toggle; READ_EEPROM(toggle, EEPROM_TOGGLE_ADDR)
 
-	stk500v1();
+	//if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) || check_eeprom() ) {
+	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) || toggle != 0xff ) {
+#else
+	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) ) {      // If external reset
+#endif
+     
+    /* this is needed because of the __attribute__ naked, section .init 9 */
+    /* from now, we can call functions :-) */
+    asm volatile ( "clr __zero_reg__" );
+    SP=RAMEND;
+
+    stk500v1();
 
 #ifdef MMC_CS
-	mmc_updater();
+    mmc_updater();
 #endif
 
-	/* we reset via watchdog in order to reset all the registers to their default values */
-	WDTCSR = _BV(WDE);
-	while (1); // 16 ms
+#ifdef BOOT_TOGGLE
+// clear flag to avoid oo
+      WRITE_EEPROM(EEPROM_TOGGLE_ADDR, 0xff)
+      /*
+#if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
+			while(EECR & (1<<EEPE));
+			EEAR = (uint16_t)(void *)EEPROM_TOGGLE_ADDR;
+			EEDR = 0xff;
+			EECR |= (1<<EEMPE);
+			EECR |= (1<<EEPE);
+			//put_eeprom((void *)address,pagebuffer[w]);
+#else
+			eeprom_write_byte((void *)address,pagebuffer[w]);
+#endif
+    */
+#endif
+
+    /* we reset via watchdog in order to reset all the registers to their default values */
+    WDTCSR = _BV(WDE);
+    while (1); // 16 ms
+
+  } else {
+    app_start();
+  }
 }
 
 /* end of file board-stalker3.c */

@@ -32,6 +32,7 @@
 #include "board.h"
 #include "stk500v1.h"
 #include "prog_flash.h"
+#include "eeprom.h"
 
 /* define this to loose a bit compatibility, but save a few bytes */
 #define MINIMALISTIC
@@ -319,15 +320,19 @@ static inline void handle_write(flashAddress address) {
 	uint8_t w;
 	if (flags.eeprom) {		                //Write to EEPROM one byte at a time
 		for(w=0;w<length.word;w++) {
+      /*
 #if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
 			while(EECR & (1<<EEPE));
 			EEAR = (uint16_t)(void *)address;
 			EEDR = pagebuffer[w];
 			EECR |= (1<<EEMPE);
 			EECR |= (1<<EEPE);
+			//put_eeprom((void *)address,pagebuffer[w]);
 #else
 			eeprom_write_byte((void *)address,pagebuffer[w]);
 #endif
+      */
+      WRITE_EEPROM(address, pagebuffer[w])
 			address++;
 		}
 	} else {					            //Write to FLASH one page at a time
@@ -339,14 +344,19 @@ static inline void handle_read(flashAddress address) {
 	uint16_t w = 0;
 	for (w=0;w < length.word;w++) {		        // Can handle odd and even lengths okay
 		if (flags.eeprom) {	                        // Byte access EEPROM read
+      /*
 #if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
 			while(EECR & (1<<EEPE));
 			EEAR = (uint16_t)(void *)address;
 			EECR |= (1<<EERE);
 			putch(EEDR);
+      //putch(get_eeprom((void *)address));
 #else
 			putch(eeprom_read_byte((void *)address));
 #endif
+      */
+      uint8_t t; READ_EEPROM(t, address)
+      putch(t);
 			address++;
 		} else {
 #if defined (__AVR_ATmega128__) || defined (__AVR_ATmega1280__)
