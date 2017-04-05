@@ -43,7 +43,7 @@
 #ifdef MMC_CS
 /* ---[ SPI Interface ]---------------------------------------------- */
 
-static uint8_t cmd[6] = {0,0,0,0,0,0};
+//static uint8_t cmd[6] = {0,0,0,0,0,0};
 
 static void spi_send_byte(uint8_t data)
 {
@@ -58,7 +58,8 @@ static void spi_send_ff(void) {
 }
 
 
-static uint8_t send_cmd(void)
+static uint8_t send_cmd(uint8_t cmd, uint32_t params, uint8_t crc)
+//static uint8_t send_cmd(void)
 {
 	uint8_t i;
 	uint8_t result;
@@ -66,9 +67,18 @@ static uint8_t send_cmd(void)
 	spi_send_ff();
 	MMC_PORT &= ~(1<<MMC_CS); //MMC Chip Select -> Low (activate mmc)
 
+  spi_send_byte(cmd);
+	for (i=0; i<4; i++) { 
+    spi_send_byte(params & 0xff000000);
+    params <<= 8;
+  }
+  spi_send_byte(crc);
+
+  /*
 	for (i=0; i<6; i++) { 
 		spi_send_byte(cmd[i]);
 	}
+  */
 
 	// wait for response
 	for (i=0; i<255; i++) {
@@ -126,6 +136,7 @@ static inline uint8_t mmc_init(void)
 
   // CMD0
 
+  /*
   // mmc_idle; cmd[1..4] initilized to 0
 	cmd[0] = 0x40 + MMC_GO_IDLE_STATE;
 	//cmd[1] = 0x00;
@@ -133,27 +144,35 @@ static inline uint8_t mmc_init(void)
   //cmd[3] = 0x00;
   //cmd[4] = 0x00;
   cmd[5] = 0x95;
+  */
 
 	for (i=0,res=0; i<MMC_CMD0_RETRY; i++)
 	{
-		res = send_cmd();     //store result of reset command, should be 0x01
+		//res = send_cmd();     //store result of reset command, should be 0x01
+    res = send_cmd( 0x40 + MMC_GO_IDLE_STATE, 0, 0x95);
 		if (res == 0x01)      //Response R1 from MMC (0x01: IDLE, The card is in idle state and running the initializing process.)
 			break;
 	}
+
 	if (res != 0x01)
 		return(MMC_INIT);
+
 	
 
   // CMD8
   
+  /*
 	cmd[0] = 0x40 + MMC_CMD8;
 	//cmd[1] = 0x00;
   //cmd[2] = 0x00;
   cmd[3] = 0x01;
   cmd[4] = 0xAA;
   cmd[5] = 0x87;
+  */
 
-  res=send_cmd();
+  //res=send_cmd();
+  res=send_cmd(0x40 + MMC_CMD8, 0x01aa, 0x87);
+
 	if (res != 0x01) return(MMC_INIT);
 	  //MMC_PORT &= ~(1<<MMC_CS); 
   spi_send_ff();  // get 4-byte response
@@ -169,11 +188,14 @@ static inline uint8_t mmc_init(void)
   for (i = 0; i < 255; i++) {
     //while(1) {
 
+    /*
     cmd[0] = 0x40 + MMC_CMD55;
     //cmd[1] = 0x00; cmd[2] = 0x00;
     cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x87;
+    */
 
-    res=send_cmd();
+    //res=send_cmd();
+    res=send_cmd(0x40 + MMC_CMD55, 0, 0x87);
     if (res != 0x01) return(MMC_INIT);
 
       //MMC_PORT |= 1<<MMC_CS; spi_send_ff();
@@ -181,11 +203,14 @@ static inline uint8_t mmc_init(void)
 
     // ACDM41
 
+    /*
     cmd[0] = 0x40 + MMC_ACMD41;
     cmd[1] = 0x40; cmd[2] = 0x10; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0xCD;    // SDHC 3.2 - 3.3v
     // cmd[1] = 0x40; cmd[2] = 0x00; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x77;
     // cmd[1] = 0x00; cmd[2] = 0x10; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x5F;    // SD 3.2 - 3.3v
     res=send_cmd();
+    */
+    res = send_cmd(0x40 + MMC_ACMD41, 0x40100000, 0xcd);
 
       //MMC_PORT |= 1<<MMC_CS; spi_send_ff();
 
@@ -270,13 +295,16 @@ static uint8_t mmc_start_read_block(uint32_t adr)
   
 	adr <<= address_scale;
 
+  /*
 	cmd[0] = 0x40 + MMC_READ_SINGLE_BLOCK;
 	cmd[1] = (adr & 0xFF000000) >> 0x18;
 	cmd[2] = (adr & 0x00FF0000) >> 0x10;
 	cmd[3] = (adr & 0x0000FF00) >> 0x08;
 	cmd[4] = (adr & 0x000000FF);
+  */
 
-	if (send_cmd() != 0x00 || wait_start_byte()) {
+	//if (send_cmd() != 0x00 || wait_start_byte()) {
+	if (send_cmd(0x40 + MMC_READ_SINGLE_BLOCK, adr, 0) != 0x00 || wait_start_byte()) {
 		//MMC_PORT |= 1<<MMC_CS; //MMC Chip Select -> High (deactivate mmc);
 		return(MMC_CMDERROR); //wrong response!
 	}
