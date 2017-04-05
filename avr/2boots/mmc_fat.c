@@ -274,14 +274,14 @@ static inline uint8_t wait_start_byte(void) {
  *		mmc_start_read_sector initializes the reading of a sector
  *
  *		Parameters:
- *			adr: specifies address to be read from
+ *			addr: specifies address to be read from
  *
  *		Return values:
  *			MMC_OK:						Command successful
  *			MMC_CMDERROR:			Error while sending read command to mmc
  *			MMC_NOSTARTBYTE:	No start byte received
  */
-static uint8_t mmc_start_read_block(uint32_t adr)
+static uint8_t mmc_start_read_block(uint32_t addr)
 {
 
   /*    MMC support - use byte addressing, multiply sectors by 512
@@ -293,7 +293,7 @@ static uint8_t mmc_start_read_block(uint32_t adr)
 	cmd[4] = 0;
   */
   
-	adr <<= address_scale;
+	addr <<= address_scale;
 
   /*
 	cmd[0] = 0x40 + MMC_READ_SINGLE_BLOCK;
@@ -304,7 +304,7 @@ static uint8_t mmc_start_read_block(uint32_t adr)
   */
 
 	//if (send_cmd() != 0x00 || wait_start_byte()) {
-	if (send_cmd(0x40 + MMC_READ_SINGLE_BLOCK, adr, 0) != 0x00 || wait_start_byte()) {
+	if (send_cmd(0x40 + MMC_READ_SINGLE_BLOCK, addr, 0) != 0x00 || wait_start_byte()) {
 		//MMC_PORT |= 1<<MMC_CS; //MMC Chip Select -> High (deactivate mmc);
 		return(MMC_CMDERROR); //wrong response!
 	}
