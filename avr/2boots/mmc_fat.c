@@ -69,7 +69,7 @@ static uint8_t send_cmd(uint8_t cmd, uint32_t params, uint8_t crc)
 
   spi_send_byte(cmd);
 	for (i=0; i<4; i++) { 
-    spi_send_byte(params & 0xff000000);
+    spi_send_byte(params >> 24);
     params <<= 8;
   }
   spi_send_byte(crc);
