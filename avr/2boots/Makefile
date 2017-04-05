@@ -10,12 +10,12 @@
 .SECONDARY:
 
 # setup avr-gcc to compile very space efficient
-CC       = avr-gcc
-CC = /Applications/Arduino2.app/Contents/Java/hardware/tools/avr/bin/avr-gcc
+CC       = avr-gcc		# 6.2.0
+CC       = /Applications/Arduino2.app/Contents/Java/hardware/tools/avr/bin/avr-gcc # arduino 1.8.1 => gcc 4.9.2
+#CC = /Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-gcc # gcc 4.3.2
 OBJCOPY  = avr-objcopy
 OBJDUMP  = avr-objdump
-#OPTIMIZE = -Os -fwhole-file -flto -funsigned-char -fno-split-wide-types -fno-inline-small-functions -mcall-prologues -ffunction-sections -fdata-sections -ffreestanding -fno-jump-tables
-OPTIMIZE = -Os -funsigned-char -fno-split-wide-types -fno-inline-small-functions -mcall-prologues -ffunction-sections -fdata-sections -ffreestanding -fno-jump-tables -fno-tree-scev-cprop -fno-split-wide-types
+OPTIMIZE = -Os -funsigned-char -fno-split-wide-types -fno-inline-small-functions -mcall-prologues -ffunction-sections -fdata-sections -ffreestanding -fno-jump-tables -fno-tree-scev-cprop -fwhole-file -flto
 AVRSIZE  = avr-size
 
 override CFLAGS  = -g -Wall $(OPTIMIZE) -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS)

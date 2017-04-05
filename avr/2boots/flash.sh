@@ -1,6 +1,7 @@
 #!/bin/sh
 
 ISPTOOL="avrispmkII"
+ISPTOOL="usbasp"
 ISPPORT="usb"
 ISPSPEED="-b 115200"
 
@@ -17,8 +18,11 @@ HFUSE=DD
 LFUSE=FF
 ;;
 "atmega328p")
-EFUSE=05
-HFUSE=D2
+#EFUSE=05
+#HFUSE=D2
+#LFUSE=FF
+EFUSE=FE
+HFUSE=DA
 LFUSE=FF
 ;;
 "atmega1280")

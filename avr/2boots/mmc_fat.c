@@ -37,19 +37,15 @@
 #include "mmc_fat.h"
 #include "prog_flash.h"
 
-#define true 1
+#define true  1
 #define false 0
-
-void putch(char);
-void setup_uart();
-
 
 #ifdef MMC_CS
 /* ---[ SPI Interface ]---------------------------------------------- */
 
-static unsigned char cmd[6] = {0,0,0,0,0,0};
+static uint8_t cmd[6] = {0,0,0,0,0,0};
 
-static void spi_send_byte(unsigned char data)
+static void spi_send_byte(uint8_t data)
 {
 	SPDR=data;
 	loop_until_bit_is_set(SPSR, SPIF); // wait for byte transmitted...
@@ -62,10 +58,10 @@ static void spi_send_ff(void) {
 }
 
 
-static unsigned char send_cmd(void)
+static uint8_t send_cmd(void)
 {
-	unsigned char i;
-	unsigned char result;
+	uint8_t i;
+	uint8_t result;
 	
 	spi_send_ff();
 	MMC_PORT &= ~(1<<MMC_CS); //MMC Chip Select -> Low (activate mmc)
@@ -84,21 +80,24 @@ static unsigned char send_cmd(void)
       return(result);
 	}
 
-	return(result); // TimeOut
+	return(result); // TimeOut?
 }
 
 /* ---[ MMC Interface ]---------------------------------------------- */
 
-#define MMC_CMD0_RETRY	(unsigned char)16
+#define MMC_CMD0_RETRY	(uint8_t)16
 
 // MMC Commands needed for reading a file from the card
 #define MMC_GO_IDLE_STATE 0
-#define MMC_SEND_OP_COND 1
+#define MMC_SEND_OP_COND  1
+#define MMC_CMD8          8
+#define MMC_CMD55        55
+#define MMC_ACMD41       41
 #define MMC_READ_SINGLE_BLOCK 17
 
 /* the sector buffer */
 uint8_t buff[512];
-uint8_t page_size = 0;
+uint8_t address_scale = 0;  // bits to shift address, 0 if block addressing, 9 for 512b MMC
 
 /*			
 *		Call mmc_init one time after a card has been connected to the µC's SPI bus!
@@ -106,12 +105,11 @@ uint8_t page_size = 0;
 *		return values:
 *			MMC_OK:				MMC initialized successfully
 *			MMC_INIT:			Error while trying to reset MMC
-*			MMC_TIMEOUT:	Error/Timeout while trying to initialize MMC
 */
-static inline unsigned char mmc_init(void)
+static inline uint8_t mmc_init(void)
 {
-	unsigned char i;
-	unsigned char res;
+	uint8_t i;
+	uint8_t res;
 
 	SPI_DDR  |= 1<<SPI_CLK | 1<<SPI_MOSI | 1<<SPI_SS; //SPI Data -> Output
 	MMC_DDR |= 1<<MMC_CS;                             //MMC Chip Select -> Output
@@ -123,7 +121,7 @@ static inline unsigned char mmc_init(void)
 
   // Pulse 80+ clocks to reset MMC
   for (i=0; i<=10; i++)
-		spi_send_ff();	
+		spi_send_ff();
 
 
   // CMD0
@@ -148,61 +146,62 @@ static inline unsigned char mmc_init(void)
 
   // CMD8
   
-	cmd[0] = 0x48;
+	cmd[0] = 0x40 + MMC_CMD8;
 	//cmd[1] = 0x00;
   //cmd[2] = 0x00;
   cmd[3] = 0x01;
   cmd[4] = 0xAA;
   cmd[5] = 0x87;
 
-  //cmd_ptr = mmc_cmd8;    //JACK
-  //
-
-
   res=send_cmd();
 	if (res != 0x01) return(MMC_INIT);
 	  //MMC_PORT &= ~(1<<MMC_CS); 
-  spi_send_ff();
+  spi_send_ff();  // get 4-byte response
   spi_send_ff();
   spi_send_ff();
   spi_send_ff();
 
 
 		//MMC_PORT |= 1<<MMC_CS; spi_send_ff();
+
+  // CMD55
 
   for (i = 0; i < 255; i++) {
-  //while(1) {
+    //while(1) {
 
-	cmd[0] = 0x77;  // CMD55
-	//cmd[1] = 0x00; cmd[2] = 0x00;
-  cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x87;
-  res=send_cmd();
-	if (res != 0x01) return(MMC_INIT);
+    cmd[0] = 0x40 + MMC_CMD55;
+    //cmd[1] = 0x00; cmd[2] = 0x00;
+    cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x87;
 
-		//MMC_PORT |= 1<<MMC_CS; spi_send_ff();
+    res=send_cmd();
+    if (res != 0x01) return(MMC_INIT);
+
+      //MMC_PORT |= 1<<MMC_CS; spi_send_ff();
 
 
-  // ACDM41
-  
-	cmd[0] = 0x69;
-	cmd[1] = 0x40; cmd[2] = 0x10; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0xCD;    // SDHC 3.2 - 3.3v
-	// JACK cmd[1] = 0x40; cmd[2] = 0x00; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x77;
-	// JACK cmd[1] = 0x00; cmd[2] = 0x10; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x5F;    // SD 3.2 - 3.3v
-	// JACK cmd[1] = 0x00; cmd[2] = 0x00; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0xE5;
-  res=send_cmd();
+    // ACDM41
 
-		//MMC_PORT |= 1<<MMC_CS; spi_send_ff();
+    cmd[0] = 0x40 + MMC_ACMD41;
+    cmd[1] = 0x40; cmd[2] = 0x10; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0xCD;    // SDHC 3.2 - 3.3v
+    // cmd[1] = 0x40; cmd[2] = 0x00; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x77;
+    // cmd[1] = 0x00; cmd[2] = 0x10; cmd[3] = 0x00; cmd[4] = 0x00; cmd[5] = 0x5F;    // SD 3.2 - 3.3v
+    res=send_cmd();
 
-  /*
-	cmd[0] = 0x40 + MMC_SEND_OP_COND;
-  res=send_cmd();
-		MMC_PORT |= 1<<MMC_CS; spi_send_ff();
-  */
+      //MMC_PORT |= 1<<MMC_CS; spi_send_ff();
 
-  //if (res == 0 || res == 5) break;
-  if (res == 0 ) break;
+
+    //if (res == 0 || res == 5) break;
+    if (res == 0 ) break;
 
   }
+
+
+    /*
+    cmd[0] = 0x40 + MMC_SEND_OP_COND;
+    res=send_cmd();
+      MMC_PORT |= 1<<MMC_CS; spi_send_ff();
+    */
+
 
   /*
 	cmd[0] = 0x50;   // CMD10 block length 512
@@ -226,10 +225,17 @@ static inline unsigned char mmc_init(void)
   */
 }
 
-static unsigned char wait_start_byte(void)
-{
-	unsigned char i;
+
+static inline uint8_t wait_start_byte(void) {
+
+	uint8_t i;
 	
+  /*
+  for (i=255; i ;i--) {
+		spi_send_ff();
+		if (SPDR == 0xFE) return MMC_OK;
+  }
+  */
 	i=255;
 	do {
 		spi_send_ff();
@@ -250,7 +256,7 @@ static unsigned char wait_start_byte(void)
  *			MMC_CMDERROR:			Error while sending read command to mmc
  *			MMC_NOSTARTBYTE:	No start byte received
  */
-static unsigned char mmc_start_read_block(unsigned long adr)
+static uint8_t mmc_start_read_block(uint32_t adr)
 {
 
   /*    MMC support - use byte addressing, multiply sectors by 512
@@ -262,7 +268,7 @@ static unsigned char mmc_start_read_block(unsigned long adr)
 	cmd[4] = 0;
   */
   
-	adr <<= page_size;
+	adr <<= address_scale;
 
 	cmd[0] = 0x40 + MMC_READ_SINGLE_BLOCK;
 	cmd[1] = (adr & 0xFF000000) >> 0x18;
@@ -276,8 +282,8 @@ static unsigned char mmc_start_read_block(unsigned long adr)
 	}
 	
 	//mmc_read_buffer
-	unsigned char *buf;
-	unsigned short len;
+	uint8_t  *buf;
+	uint16_t len;
  
 	buf = buff;
 	len= 512;
@@ -313,7 +319,7 @@ static struct _file_s {
 } file;
 
 
-static inline unsigned char fat16_init(void)
+static inline uint8_t fat16_init(void)
 {
 	mbr_t *mbr = (mbr_t*) buff;
 	vbr_t *vbr = (vbr_t*) buff;
@@ -353,8 +359,8 @@ static void inline fat16_readfilesector()
 	uint16_t clusteroffset;
 	uint8_t currentfatsector;
 	uint8_t temp, secoffset;
-
 	uint16_t cluster = file.startcluster;
+	uint32_t templong;
 	
 	fatsector_t *fatsector = (fatsector_t*) buff;
 
@@ -371,7 +377,7 @@ static void inline fat16_readfilesector()
 	currentfatsector = 0xFF;
 	while (clusteroffset)
 	{
-		temp = (unsigned char)((cluster & 0xFF00) >>8);
+		temp = (uint8_t)((cluster & 0xFF00) >>8);
           
 		if (currentfatsector != temp)
 		{
@@ -384,7 +390,7 @@ static void inline fat16_readfilesector()
 		clusteroffset--;
 	}
 
-	uint32_t templong = cluster - 2;
+	templong = cluster - 2;
 	temp = SectorsPerCluster>>1;
 	while(temp) {
 		templong <<= 1;	
@@ -409,7 +415,7 @@ static uint8_t file_read_byte() {	// read a byte from the open file from the mmc
 	return *file.next++;
 }
 
-static char inline gethexnib(char a) {
+static uint8_t inline gethexnib(char a) {
   a = a & 0x1f;
   if (a >= 0x10)
     return a - 0x10;      // 0-9
@@ -524,5 +530,4 @@ void mmc_updater() {
 	} while(--RootDirRegionSize);
 }
 
-#endif
-
+#endif // MMC_CS
