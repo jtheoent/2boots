@@ -37,12 +37,15 @@
 #include "board.h"
 #include "mmc_fat.h"
 #include "prog_flash.h"
+#include "eeprom.h"
 
 #define true  1
 #define false 0
 
 #define SD_SUPPORT
 //#define MMC_SUPPORT
+#define EEPROM_FILENAME_ADDR  E2END-1
+#define EEPROM_TOGGLE_ADDR    E2END
 
 #ifdef MMC_CS
 
@@ -58,7 +61,7 @@ static void spi_send_byte(uint8_t data)
 // delay 8 clocks, or get result
 static void spi_send_ff(void)
 {
-  spi_send_byte(0xFF);
+	spi_send_byte(0xFF);
 }
 
 
@@ -70,12 +73,12 @@ static uint8_t send_cmd(uint8_t cmd, uint32_t params, uint8_t crc)
 	spi_send_ff();
 	MMC_PORT &= ~(1<<MMC_CS); //MMC Chip Select -> Low (activate mmc)
 
-  spi_send_byte(cmd);
-  spi_send_byte(params >> 24);
-  spi_send_byte(params >> 16);
-  spi_send_byte(params >> 8);
-  spi_send_byte(params);
-  spi_send_byte(crc);
+	spi_send_byte(cmd);
+	spi_send_byte(params >> 24);
+	spi_send_byte(params >> 16);
+	spi_send_byte(params >> 8);
+	spi_send_byte(params);
+	spi_send_byte(crc);
 
 	// wait for response
 	for (i=255;i;i--) {
@@ -84,7 +87,7 @@ static uint8_t send_cmd(uint8_t cmd, uint32_t params, uint8_t crc)
 		result = SPDR;
 		
 		if ((result & 0x80) == 0)
-      return(result);
+			return(result);
 	}
 
 	return(result); // TimeOut?
@@ -120,7 +123,7 @@ static inline uint8_t mmc_init(void)
 	uint8_t i;
 	uint8_t res;
 
-	SPI_DDR  |= 1<<SPI_CLK | 1<<SPI_MOSI | 1<<SPI_SS; //SPI Data -> Output
+	SPI_DDR |= 1<<SPI_CLK | 1<<SPI_MOSI | 1<<SPI_SS; //SPI Data -> Output
 	MMC_DDR |= 1<<MMC_CS;                             //MMC Chip Select -> Output
 
 	SPCR = 1<<SPE | 1<<MSTR | SPI_INIT_CLOCK;         //SPI Enable, SPI Master Mode
@@ -128,14 +131,14 @@ static inline uint8_t mmc_init(void)
 	SPI_PORT |= 1<<SPI_SS;                            //PB2 output: High (deselect other SPI chips)
 	
 
-  // Pulse 80+ clocks to reset MMC
-  for (i=10; i;i--)
-    spi_send_ff();
+	// Pulse 80+ clocks to reset MMC
+	for (i=10; i;i--)
+		spi_send_ff();
 
 
-  // CMD0
+	// CMD0
 	for (i=MMC_CMD0_RETRY,res=0; i;i--) {
-    res = send_cmd(MMC_GO_IDLE_STATE, 0, 0x95);
+		res = send_cmd(MMC_GO_IDLE_STATE, 0, 0x95);
 		if (res == 0x01)      //Response R1 from MMC (0x01: IDLE, The card is in idle state and running the initializing process.)
 			break;
 	}
@@ -144,56 +147,53 @@ static inline uint8_t mmc_init(void)
 
 #ifdef SD_SUPPORT
 
-  // CMD8
-  if (res = send_cmd(MMC_CMD8, 0x01aa, 0x87) != 0x01)
-    return(MMC_INIT);
+	// CMD8
+	if (res = send_cmd(MMC_CMD8, 0x01aa, 0x87) != 0x01)
+		return(MMC_INIT);
 
-  spi_send_ff();  // get 4-byte response
-  spi_send_ff();
-  spi_send_ff();
-  spi_send_ff();
-
+	spi_send_ff();  // get 4-byte response
+	spi_send_ff();
+	spi_send_ff();
+	spi_send_ff();
 
 		//MMC_PORT |= 1<<MMC_CS; spi_send_ff();
 
+	for (i=255; i;i--) {
 
-  for (i=255; i;i--) {
-    //while(1) {
+		// CMD55
+		if (res = send_cmd(MMC_CMD55, 0, 0x87) != 0x01)
+			return(MMC_INIT);
 
-    // CMD55
-    if (res = send_cmd(MMC_CMD55, 0, 0x87) != 0x01)
-      return(MMC_INIT);
-
-      //MMC_PORT |= 1<<MMC_CS; spi_send_ff(); // delay
+			//MMC_PORT |= 1<<MMC_CS; spi_send_ff(); // delay
 
 
-    // ACDM41
+		// ACDM41
 
-    res = send_cmd(MMC_ACMD41, 0x40100000, 0xcd);  // 0x40100000:0xcd SDHC 3.2-3.3v, 0x40000000:0x77, 0x00100000:0x5f SD 3.2-3.3v
+		res = send_cmd(MMC_ACMD41, 0x40100000, 0xcd);  // 0x40100000:0xcd SDHC 3.2-3.3v, 0x40000000:0x77, 0x00100000:0x5f SD 3.2-3.3v
 
-      //MMC_PORT |= 1<<MMC_CS; spi_send_ff();
+			//MMC_PORT |= 1<<MMC_CS; spi_send_ff();
 
 
-    //if (res == 0 || res == 5) break;
-    if (res == 0 ) break;
-  }
+		//if (res == 0 || res == 5) break;
+		if (res == 0 ) break;
+	}
 
-  // CMD58 CRC?
-  // CMD10 set block length 512
-  // res=send_cmd(MMC_CMD10, 0x200, 0xff);
+	// CMD58 CRC?
+	// CMD10 set block length 512
+	// res=send_cmd(MMC_CMD10, 0x200, 0xff);
 
 #endif //SD_SUPPORT
 #ifdef MMC_SUPPORT
-  for (i=255; i;i--) {  // maybe too SHORT for some of cards!
-    if (res=send_cmd(MMC_SEND_OP_COND, 0, 0) == 0)
-      break;
-    MMC_PORT |= 1<<MMC_CS; spi_send_ff(); spi_send_ff();
-  }
-  if (res) return MMC_INIT;
-#endif
+	for (i=255; i;i--) {  // maybe too SHORT for some of cards!
+		if (res=send_cmd(MMC_SEND_OP_COND, 0, 0) == 0)
+			break;
+		MMC_PORT |= 1<<MMC_CS; spi_send_ff(); spi_send_ff();
+	}
+	if (res) return MMC_INIT;
+#endif // MMC_SUPPORT
 
 	SPCR = 1<<SPE | 1<<MSTR | SPI_READ_CLOCK; //SPI Enable, SPI Master Mode   // possibly comment out?
-  return(MMC_OK);
+	return(MMC_OK);
 }
 
 
@@ -201,10 +201,10 @@ static inline uint8_t wait_start_byte(void) {
 
 	uint8_t i;
 	
-  for (i=255; i;i--) {
+	for (i=255; i;i--) {
 		spi_send_ff();
 		if (SPDR == 0xFE) return MMC_OK;
-  }
+	}
 	return MMC_NOSTARTBYTE;
 }
 
@@ -212,7 +212,7 @@ static inline uint8_t wait_start_byte(void) {
  *		mmc_start_read_sector initializes the reading of a sector
  *
  *		Parameters:
- *			addr: specifies address to be read from
+ *			addr: specifies block address to be read from
  *
  *		Return values:
  *			MMC_OK:						Command successful
@@ -222,7 +222,7 @@ static inline uint8_t wait_start_byte(void) {
 static uint8_t mmc_start_read_block(uint32_t addr)
 {
 
-  // MMC uses byte addressing, shift sectors by block size
+	// MMC uses byte addressing, shift sectors by block size
 	addr <<= address_scale;
 
 	if (send_cmd(MMC_READ_SINGLE_BLOCK, addr, 0) != 0x00 || wait_start_byte()) {
@@ -275,23 +275,23 @@ static inline uint8_t fat16_init(void)
 		
 	if (mmc_init() != MMC_OK) return 1;
 	
-  mmc_start_read_block(0);
+	mmc_start_read_block(0);
 
-  // Try sector 0 as a bootsector
+	// Try sector 0 as a bootsector
 	if ((vbr->bsFileSysType[0] == 'F') && (vbr->bsFileSysType[4] == '6'))
 	{
 		FATRegionStartSec = 0;
 	}
 	else // Try sector 0 as a MBR	
-	{     	 
+	{
 		FATRegionStartSec = mbr->sector.partition[0].sectorOffset;
 
 		mmc_start_read_block(mbr->sector.partition[0].sectorOffset);
-        if ((vbr->bsFileSysType[0] != 'F') || (vbr->bsFileSysType[4] != '6')) {
-		      return 2; // No FAT16 found
-        }
-     }
-    
+				if ((vbr->bsFileSysType[0] != 'F') || (vbr->bsFileSysType[4] != '6')) {
+				  return 2; // No FAT16 found
+				}
+		 }
+		
 	SectorsPerCluster     = vbr->bsSecPerClus; // 4
 	
 	// Calculation Algorithms
@@ -323,13 +323,13 @@ static void inline fat16_readfilesector()
 	while(temp) {
 		clusteroffset >>= 1;
 		temp >>= 1;
-  }
+	}
 
 	currentfatsector = 0xFF;
 	while (clusteroffset)
 	{
 		temp = (uint8_t)((cluster & 0xFF00) >>8);
-          
+
 		if (currentfatsector != temp)
 		{
 			mmc_start_read_block(FATRegionStartSec + temp);
@@ -358,7 +358,7 @@ static void inline fat16_readfilesector()
 
 static uint8_t file_read_byte() {	// read a byte from the open file from the mmc...
 	if (file.next >= buff + 512) {
-	    fat16_readfilesector();
+		fat16_readfilesector();
 		file.next = file.next - 512;
 	}
 	file.size--;
@@ -366,19 +366,19 @@ static uint8_t file_read_byte() {	// read a byte from the open file from the mmc
 }
 
 static uint8_t inline gethexnib(char a) {
-  a = a & 0x1f;
-  if (a >= 0x10)
-    return a - 0x10;      // 0-9
-  else
-    return a - 1 + 0x0a;  // A-F, a-f
+	a = a & 0x1f;
+	if (a >= 0x10)
+		return a - 0x10;      // 0-9
+	else
+		return a - 1 + 0x0a;  // A-F, a-f
 }
 
 static uint8_t file_read_hex(void) {
 	return (gethexnib(file_read_byte()) << 4) + gethexnib(file_read_byte());
 }
 
+// read current file, convert it from intel hex and flash it
 static inline void read_hex_file(void) {
-	// read current file and convert it from intel hex and flash it, all in the same function
 	uint8_t num_flash_words = 0;
 	uint8_t* out = pagebuffer;
 	flashAddress address = 0;
@@ -386,23 +386,20 @@ static inline void read_hex_file(void) {
 	{
 		if (num_flash_words)
 		{
-			// read (de-hexify)
-			*out++ = file_read_hex();
+			*out++ = file_read_hex();             // read (de-hexify)
 			num_flash_words--;
 		
 			// if pagebuffer is full
 			if (out - pagebuffer == SPM_PAGESIZE) {
-        // write page
-        write_flash_page(address);
-        address += SPM_PAGESIZE;
+				write_flash_page(address);          // write page
+				address += SPM_PAGESIZE;
 				out = pagebuffer;
 			}
 		} 
 		else
 		{
-			// skip bytes until we find another ':'
-			if (file_read_byte() == ':') {
-				num_flash_words = file_read_hex();  // number of words on line
+			if (file_read_byte() == ':') {        // skip bytes until we find another ':'
+				num_flash_words = file_read_hex();  // number of words on this line
 				file.next+=4;                       // skip 4 bytes of address
 #ifdef LARGE_ADDR_SPACE
 				uint8_t recordt = file_read_hex();
@@ -421,18 +418,33 @@ static inline void read_hex_file(void) {
 
 /* ----[ directory entry checks ]--------------------------------------------------- */
 
-static inline uint8_t get_eeprom(void *addr) {
-#if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
+/*
+static uint8_t read_eeprom(void *addr) {
+#if defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__)
 		while(EECR & (1<<EEPE));
 		EEAR = addr;
 		EECR |= (1<<EERE);
 		return EEDR;
+		//return eeprom_read_byte(addr);
 #else
 		return eeprom_read_byte(addr);
 #endif
 }
 
-static inline uint8_t check_file(direntry_t * dir) {
+void write_eeprom(void *addr, uint8_t byte) {
+#if defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__)
+  while(EECR & (1<<EEPE));
+  EEAR = addr;
+  EEDR = byte;
+  EECR |= (1<<EEMPE);
+  EECR |= (1<<EEPE);
+#else
+  eeprom_write_byte(E2END, 0xff);
+#endif
+}
+*/
+
+static inline uint8_t match_filename(direntry_t * dir) {
 	uint8_t i;
 
 	/* if file is empty, return */
@@ -446,19 +458,19 @@ static inline uint8_t check_file(direntry_t * dir) {
 	file.next = buff + 512; /* this triggers a new sector load when reading first byte... */
 
 	// compare name to EEPROM 8.3, 11 chars
-  for (i=0; i<11; i++) 
-		if (get_eeprom(E2END - i) != dir->name[i])
-      return false;
-    
+	for (i=0; i<11; i++) 
+		if (get_eeprom((void *)EEPROM_FILENAME_ADDR - i) != dir->name[i])
+			return false;
+		
 	// match
-  return true;
+	return true;
 }
 
-
 void mmc_updater() {
-  //if (get_eeprom(E2END) == 0xff) return;
+	//if (get_eeprom((void *)EEPROM_TOGGLE_ADDR) == 0xff) return;
+	if (check_eeprom_toggle()) return;
 
-  if (fat16_init() != 0) return;	
+	if (fat16_init() != 0) return;	
 
 	uint32_t dirsector = RootDirRegionStartSec;
 
@@ -469,12 +481,13 @@ void mmc_updater() {
 
 		// check each file
 		uint8_t i;
-    for (i = 0; i < 16; i++) {
+		for (i = 0; i < 16; i++) {
 			direntry_t* dir = (direntry_t *) buff + i;
-			if (check_file(dir)) {
-	      read_hex_file();
-        return;
-      }
+			if (match_filename(dir)) {
+				read_hex_file();
+        put_eeprom((void *)EEPROM_TOGGLE_ADDR, 0xff);
+				return;
+			}
 		}
 		dirsector++;
 

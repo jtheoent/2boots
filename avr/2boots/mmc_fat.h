@@ -187,6 +187,7 @@ typedef struct
 
 
 void mmc_updater();
+//uint8_t get_eeprom(void *);
 
 
 

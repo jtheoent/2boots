@@ -1,7 +1,12 @@
+
 /**********************************************************/
-/* board-arduino.c                                        */
-/* Copyright (c) 2010 by thomas seiler                    */
-/* 2boots board file for arduino boards                   */
+/* mmc_fat.c                                              */
+/* Copyright (c) 2010 by thomas seiler                    */ 
+/* read a file from a FAT16 formatted MMC card            */
+/* Code taken from HolgerBootloader (public domain)       */
+/* from mikrokontroller.net and adapted for smaller size  */
+/* SD support and code shrink by @jtheorent               */
+/*                                                        */
 /* -------------------------------------------------------*/
 /*                                                        */
 /* This program is free software; you can redistribute it */
@@ -24,54 +29,36 @@
 /* Licence can be viewed at                               */
 /* http://www.fsf.org/licenses/gpl.txt                    */
 /**********************************************************/
-
-
-/* some includes */
-#include <inttypes.h>
 #include <avr/io.h>
-#include "stk500v1.h"
-#include "mmc_fat.h"
+#include <inttypes.h>
+#if !defined(__AVR_ATmega168__) || !defined(__AVR_ATmega328P__)
+#include <avr/eeprom.h>  /* filename from eeprom */
+#endif
 #include "eeprom.h"
 
-/* function prototype */
-void main (void) __attribute__ ((naked,section (".init9"),externally_visible));
-
-/* some variables */
-const void (*app_start)(void) = 0x0000;
-uint8_t reset_reason = 0;
-
-/* main program starts here */
-void main(void)
-{
-	/* here we learn how we were reset */
-	reset_reason = MCUSR;
-	MCUSR = 0;
-
-	/* stop watchdog */
-	WDTCSR |= _BV(WDCE) | _BV(WDE);
-	WDTCSR = 0;
-
-	// If external reset
-	//if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) || (read_eeprom(EEPROM_TOGGLE_ADDR) != 0xff)) {
-	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) || !check_eeprom_toggle()) {
-     
-    /* this is needed because of the __attribute__ naked, section .init 9 */
-    /* from now, we can call functions :-) */
-    asm volatile ( "clr __zero_reg__" );
-    SP=RAMEND;
-
-    stk500v1();
-
-#ifdef MMC_CS
-    mmc_updater();
+inline uint8_t get_eeprom(void *addr) {
+#if defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__)
+		while(EECR & (1<<EEPE));
+		EEAR = addr;
+		EECR |= (1<<EERE);
+		return EEDR;
+#else
+		return eeprom_read_byte(addr);
 #endif
-
-    /* we reset via watchdog in order to reset all the registers to their default values */
-    WDTCSR = _BV(WDE);
-    while (1); // 16 ms
-  } else {
-    app_start();
-  }
 }
 
-/* end of file board-stalker3.c */
+uint8_t check_eeprom_toggle() {
+  return (get_eeprom(EEPROM_TOGGLE_ADDR) == 0xff);
+}
+
+void put_eeprom(void *addr, uint8_t byte) {
+#if defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__)
+  while(EECR & (1<<EEPE));
+  EEAR = addr;
+  EEDR = byte;
+  EECR |= (1<<EEMPE);
+  EECR |= (1<<EEPE);
+#else
+  eeprom_write_byte(addr, byte);
+#endif
+}
