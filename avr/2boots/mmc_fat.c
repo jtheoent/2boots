@@ -467,8 +467,8 @@ static inline uint8_t match_filename(direntry_t * dir) {
 }
 
 void mmc_updater() {
-	//if (get_eeprom((void *)EEPROM_TOGGLE_ADDR) == 0xff) return;
-	if (check_eeprom_toggle()) return;
+	if (get_eeprom((void *)EEPROM_TOGGLE_ADDR) == 0xff) return;
+	//if (!check_eeprom_toggle()) return;
 
 	if (fat16_init() != 0) return;	
 

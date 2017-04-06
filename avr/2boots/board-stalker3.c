@@ -53,7 +53,7 @@ void main(void)
 
 	// If external reset
 	//if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) || (read_eeprom(EEPROM_TOGGLE_ADDR) != 0xff)) {
-	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) || !check_eeprom_toggle()) {
+	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) || check_eeprom_toggle()) {
      
     /* this is needed because of the __attribute__ naked, section .init 9 */
     /* from now, we can call functions :-) */

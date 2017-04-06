@@ -48,7 +48,7 @@ inline uint8_t get_eeprom(void *addr) {
 }
 
 uint8_t check_eeprom_toggle() {
-  return (get_eeprom(EEPROM_TOGGLE_ADDR) == 0xff);
+  return (get_eeprom(EEPROM_TOGGLE_ADDR) != 0xff);
 }
 
 void put_eeprom(void *addr, uint8_t byte) {
