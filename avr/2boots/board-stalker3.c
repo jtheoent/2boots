@@ -2,6 +2,7 @@
 /* board-arduino.c                                        */
 /* Copyright (c) 2010 by thomas seiler                    */
 /* 2boots board file for arduino boards                   */
+/* 2017 Changed boot sequence @jtheorent                  */
 /* -------------------------------------------------------*/
 /*                                                        */
 /* This program is free software; you can redistribute it */
@@ -51,9 +52,12 @@ void main(void)
 	WDTCSR |= _BV(WDCE) | _BV(WDE);
 	WDTCSR = 0;
 
-	// If external reset
-	//if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) || (read_eeprom(EEPROM_TOGGLE_ADDR) != 0xff)) {
-	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) || check_eeprom_toggle()) {
+#ifdef BOOT_TOGGLE  // eeprom flag forces bootloader to run
+	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) || check_eeprom_toggle() ) {
+    put_eeprom((void *)EEPROM_TOGGLE_ADDR, 0xff);   // clear flag to avoid oo
+#else
+	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) ) {      // If external reset
+#endif
      
     /* this is needed because of the __attribute__ naked, section .init 9 */
     /* from now, we can call functions :-) */
@@ -69,6 +73,7 @@ void main(void)
     /* we reset via watchdog in order to reset all the registers to their default values */
     WDTCSR = _BV(WDE);
     while (1); // 16 ms
+
   } else {
     app_start();
   }

@@ -1,10 +1,6 @@
 /**********************************************************/
-/* mmc_fat.c                                              */
-/* Copyright (c) 2010 by thomas seiler                    */ 
-/* read a file from a FAT16 formatted MMC card            */
-/* Code taken from HolgerBootloader (public domain)       */
-/* from mikrokontroller.net and adapted for smaller size  */
-/* SD support and code shrink by @jtheorent               */
+/* eeprom.c                                               */
+/* Copyright (c) 2017 by @jtheorent                       */ 
 /*                                                        */
 /* -------------------------------------------------------*/
 /*                                                        */

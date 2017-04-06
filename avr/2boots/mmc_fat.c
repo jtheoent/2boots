@@ -44,6 +44,7 @@
 
 #define SD_SUPPORT
 //#define MMC_SUPPORT
+
 #define EEPROM_FILENAME_ADDR  E2END-1
 #define EEPROM_TOGGLE_ADDR    E2END
 
@@ -467,8 +468,9 @@ static inline uint8_t match_filename(direntry_t * dir) {
 }
 
 void mmc_updater() {
-	if (get_eeprom((void *)EEPROM_TOGGLE_ADDR) == 0xff) return;
-	//if (!check_eeprom_toggle()) return;
+#ifndef BOOT_TOGGLE
+	if (!check_eeprom_toggle()) return;
+#endif
 
 	if (fat16_init() != 0) return;	
 
@@ -485,7 +487,6 @@ void mmc_updater() {
 			direntry_t* dir = (direntry_t *) buff + i;
 			if (match_filename(dir)) {
 				read_hex_file();
-        put_eeprom((void *)EEPROM_TOGGLE_ADDR, 0xff);
 				return;
 			}
 		}

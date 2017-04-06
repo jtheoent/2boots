@@ -1,11 +1,6 @@
-
 /**********************************************************/
-/* mmc_fat.c                                              */
-/* Copyright (c) 2010 by thomas seiler                    */ 
-/* read a file from a FAT16 formatted MMC card            */
-/* Code taken from HolgerBootloader (public domain)       */
-/* from mikrokontroller.net and adapted for smaller size  */
-/* SD support and code shrink by @jtheorent               */
+/* eeprom.c                                               */
+/* Copyright (c) 2017 by @jtheorent                       */ 
 /*                                                        */
 /* -------------------------------------------------------*/
 /*                                                        */
@@ -38,12 +33,12 @@
 
 inline uint8_t get_eeprom(void *addr) {
 #if defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__)
-		while(EECR & (1<<EEPE));
-		EEAR = addr;
-		EECR |= (1<<EERE);
-		return EEDR;
+  while(EECR & (1<<EEPE));
+  EEAR = addr;
+  EECR |= (1<<EERE);
+  return EEDR;
 #else
-		return eeprom_read_byte(addr);
+  return eeprom_read_byte(addr);
 #endif
 }
 

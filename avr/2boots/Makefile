@@ -58,6 +58,7 @@ board-arduino: MMC_CSS = nommc PD4
 board-stalker3: FCPUS = 8000000L
 board-stalker3: MCUS = atmega328p
 board-stalker3: MMC_CSS = PB2 nommc
+board-stalker3: DEFS += -DBOOT_TOGGLE
 
 #ftthhead
 #board-ftthhead: FCPUS = 8000000L
