@@ -28,11 +28,36 @@
 #define _eeprom_h_
 
 #define EEPROM_TOGGLE_ADDR    E2END
+
 #ifdef BOOT_TOGGLE
-#define EEPROM_FILENAME_ADDR  E2END-1
+  #define EEPROM_FILENAME_ADDR  E2END-1
 #else
-#define EEPROM_FILENAME_ADDR  E2END
+  #define EEPROM_FILENAME_ADDR  E2END
 #endif
+
+#if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
+  #define WRITE_EEPROM(address, value) \
+      while(EECR & (1<<EEPE)); \
+ 			EEAR = (uint16_t)(void *)address; \
+ 			EEDR = (uint8_t)value; \
+ 			EECR |= (1<<EEMPE);\
+ 			EECR |= (1<<EEPE);
+#else
+  #define WRITE_EEPROM(address, value) \
+    eeprom_write_byte(address,value);
+#endif
+
+#if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
+  #define READ_EEPROM(var, addr) \
+    while(EECR & (1<<EEPE)); \
+    EEAR = (uint16_t)(void *)addr; \
+    EECR |= (1<<EERE); \
+    var = EEDR;
+#else
+  #define READ_EEPROM(var,addr) \
+    var = eeprom_read_byte((void *)addr);
+#endif
+
 
 #endif
 

@@ -477,6 +477,7 @@ uint8_t ch =0;
 
 void mmc_updater() {
 #ifndef BOOT_TOGGLE
+  /*
 	//if (!check_eeprom_toggle()) return;
 #if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
 		while(EECR & (1<<EEPE));
@@ -486,6 +487,9 @@ void mmc_updater() {
 #else
 		if (eeprom_read_byte((void *)EEPROM_TOGGLE_ADDR) == 0xff) return;
 #endif
+    */
+    uint8_t i; READ_EEPROM(i, EEPROM_TOGGLE_ADDR)
+    if (i == 0xff) return;
 #endif
 
 	if (fat16_init() != 0) return;	
