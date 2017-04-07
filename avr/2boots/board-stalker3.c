@@ -53,19 +53,7 @@ void main(void)
 	WDTCSR = 0;
 
 #ifdef BOOT_TOGGLE  // eeprom flag forces bootloader to run
-  /*
-  #if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
-		while(EECR & (1<<EEPE));
-		EEAR = (uint16_t)(void *)EEPROM_TOGGLE_ADDR;
-		EECR |= (1<<EERE);
-		toggle = EEDR;
-  #else
-		toggle = eeprom_read_byte((void *)EEPROM_TOGGLE_ADDR);
-  #endif
-  */
   uint8_t toggle; READ_EEPROM(toggle, EEPROM_TOGGLE_ADDR)
-
-	//if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) || check_eeprom() ) {
 	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) || toggle != 0xff ) {
 #else
 	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) ) {      // If external reset
@@ -83,20 +71,8 @@ void main(void)
 #endif
 
 #ifdef BOOT_TOGGLE
-// clear flag to avoid oo
-      WRITE_EEPROM(EEPROM_TOGGLE_ADDR, 0xff)
-      /*
-#if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
-			while(EECR & (1<<EEPE));
-			EEAR = (uint16_t)(void *)EEPROM_TOGGLE_ADDR;
-			EEDR = 0xff;
-			EECR |= (1<<EEMPE);
-			EECR |= (1<<EEPE);
-			//put_eeprom((void *)address,pagebuffer[w]);
-#else
-			eeprom_write_byte((void *)address,pagebuffer[w]);
-#endif
-    */
+    // clear flag to avoid oo
+    WRITE_EEPROM(EEPROM_TOGGLE_ADDR, 0xff)
 #endif
 
     /* we reset via watchdog in order to reset all the registers to their default values */
