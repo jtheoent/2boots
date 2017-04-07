@@ -22,7 +22,7 @@ override LDFLAGS = -Wl,$(LDSECTION) -Wl,--relax -nostartfiles -Wl,--gc-sections
 
 # these are our actual source files
 # the BOARD variable will be replaced later, depending on which board is beeing compiled
-SRC = $(BOARD).c stk500v1.c mmc_fat.c prog_flash.c eeprom.c
+SRC = $(BOARD).c stk500v1.c mmc_fat.c prog_flash.c
 
 # the 'all' rule should build 2boots for all supported boards
 # to create one target per board-*.c file we use a $(wildcard... ) rule
@@ -57,7 +57,7 @@ board-arduino: MMC_CSS = nommc PD4
 #stalker:
 board-stalker3: FCPUS = 8000000L
 board-stalker3: MCUS = atmega328p
-board-stalker3: MMC_CSS = PB2 nommc
+board-stalker3: MMC_CSS = PB2
 board-stalker3: DEFS += -DBOOT_TOGGLE
 
 #ftthhead

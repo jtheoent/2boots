@@ -1,5 +1,5 @@
 /**********************************************************/
-/* eeprom.c                                               */
+/* eeprom.h                                               */
 /* Copyright (c) 2017 by @jtheorent                       */ 
 /*                                                        */
 /* -------------------------------------------------------*/
@@ -27,11 +27,12 @@
 #ifndef _eeprom_h_
 #define _eeprom_h_
 
-#define EEPROM_FILENAME_ADDR  E2END-1
 #define EEPROM_TOGGLE_ADDR    E2END
+#ifdef BOOT_TOGGLE
+#define EEPROM_FILENAME_ADDR  E2END-1
+#else
+#define EEPROM_FILENAME_ADDR  E2END
+#endif
 
-uint8_t get_eeprom(void *);
-uint8_t check_eeprom_toggle();
-void put_eeprom(void *, uint8_t);
 #endif
 

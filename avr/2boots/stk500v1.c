@@ -320,14 +320,12 @@ static inline void handle_write(flashAddress address) {
 	if (flags.eeprom) {		                //Write to EEPROM one byte at a time
 		for(w=0;w<length.word;w++) {
 #if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
-      /*
 			while(EECR & (1<<EEPE));
 			EEAR = (uint16_t)(void *)address;
 			EEDR = pagebuffer[w];
 			EECR |= (1<<EEMPE);
 			EECR |= (1<<EEPE);
-      */
-			put_eeprom((void *)address,pagebuffer[w]);
+			//put_eeprom((void *)address,pagebuffer[w]);
 #else
 			eeprom_write_byte((void *)address,pagebuffer[w]);
 #endif
@@ -343,13 +341,11 @@ static inline void handle_read(flashAddress address) {
 	for (w=0;w < length.word;w++) {		        // Can handle odd and even lengths okay
 		if (flags.eeprom) {	                        // Byte access EEPROM read
 #if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
-      /*
 			while(EECR & (1<<EEPE));
 			EEAR = (uint16_t)(void *)address;
 			EECR |= (1<<EERE);
 			putch(EEDR);
-      */
-      putch(get_eeprom((void *)address));
+      //putch(get_eeprom((void *)address));
 #else
 			putch(eeprom_read_byte((void *)address));
 #endif

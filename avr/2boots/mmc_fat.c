@@ -45,8 +45,6 @@
 #define SD_SUPPORT
 //#define MMC_SUPPORT
 
-#define EEPROM_FILENAME_ADDR  E2END-1
-#define EEPROM_TOGGLE_ADDR    E2END
 
 #ifdef MMC_CS
 
@@ -459,8 +457,18 @@ static inline uint8_t match_filename(direntry_t * dir) {
 	file.next = buff + 512; /* this triggers a new sector load when reading first byte... */
 
 	// compare name to EEPROM 8.3, 11 chars
+uint8_t ch =0;
 	for (i=0; i<11; i++) 
-		if (get_eeprom((void *)EEPROM_FILENAME_ADDR - i) != dir->name[i])
+		//if (get_eeprom((void *)EEPROM_FILENAME_ADDR - i) != dir->name[i])
+#if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
+		while(EECR & (1<<EEPE));
+		EEAR = (uint16_t)(void *)EEPROM_FILENAME_ADDR -i;
+		EECR |= (1<<EERE);
+		ch = EEDR;
+#else
+		ch = eeprom_read_byte((void *)EEPROM_FILENAME_ADDR - i);
+#endif
+		if (ch != dir->name[i])
 			return false;
 		
 	// match
@@ -469,7 +477,15 @@ static inline uint8_t match_filename(direntry_t * dir) {
 
 void mmc_updater() {
 #ifndef BOOT_TOGGLE
-	if (!check_eeprom_toggle()) return;
+	//if (!check_eeprom_toggle()) return;
+#if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
+		while(EECR & (1<<EEPE));
+		EEAR = (uint16_t)(void *)EEPROM_TOGGLE_ADDR;
+		EECR |= (1<<EERE);
+		if (EEDR == 0xff) return;
+#else
+		if (eeprom_read_byte((void *)EEPROM_TOGGLE_ADDR) == 0xff) return;
+#endif
 #endif
 
 	if (fat16_init() != 0) return;	
