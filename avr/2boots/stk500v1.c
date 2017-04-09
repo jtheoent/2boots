@@ -73,7 +73,7 @@ struct flags_struct { // changed from a packed struct to save some bytes
 static const uint8_t bootuart = 1;
 #endif
 
-static inline void setup_uart() {
+inline void setup_uart() {
 
 	/* initialize UART(s) depending on CPU defined */
 
@@ -156,7 +156,7 @@ static inline void setup_uart() {
 #endif
 }
 
-static void putch(char ch)
+void putch(char ch)
 {
 	/* send a byte to UART depending on CPU defined */
 
@@ -350,7 +350,6 @@ static inline void handle_read(flashAddress address) {
 			EEAR = (uint16_t)(void *)address;
 			EECR |= (1<<EERE);
 			putch(EEDR);
-      //putch(get_eeprom((void *)address));
 #else
 			putch(eeprom_read_byte((void *)address));
 #endif

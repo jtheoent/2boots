@@ -45,6 +45,15 @@
 #define SD_SUPPORT
 //#define MMC_SUPPORT
 
+void setup_uart();
+void putch(char);
+
+#define DEBUG 1
+
+#define debug_putch(_x) \
+  if(DEBUG) { putch(_x); }
+#define debug_uart() \
+  if(DEBUG) { setup_uart(); }
 
 #ifdef MMC_CS
 
@@ -134,6 +143,7 @@ static inline uint8_t mmc_init(void)
 	for (i=10; i;i--)
 		spi_send_ff();
 
+debug_putch('P');
 
 	// CMD0
 	for (i=MMC_CMD0_RETRY,res=0; i;i--) {
@@ -144,16 +154,26 @@ static inline uint8_t mmc_init(void)
 	if (res != 0x01)
 		return(MMC_INIT);
 
+  debug_putch('0');
 #ifdef SD_SUPPORT
 
 	// CMD8
 	if (res = send_cmd(MMC_CMD8, 0x01aa, 0x87) != 0x01)
 		return(MMC_INIT);
+  debug_putch('8');
 
-	spi_send_ff();  // get 4-byte response
+  // get 4-byte response
+  // this is where the card declares the voltage levels it can support.
+  // since all cards should do 2.7-3.6v which is what we provide (isn't it!),
+  // ignore the repsonse and continue
 	spi_send_ff();
 	spi_send_ff();
 	spi_send_ff();
+	spi_send_ff();
+
+	for (i=255; i;i--) {
+	spi_send_ff();
+  }
 
 		//MMC_PORT |= 1<<MMC_CS; spi_send_ff();
 
@@ -162,6 +182,8 @@ static inline uint8_t mmc_init(void)
 		// CMD55
 		if (res = send_cmd(MMC_CMD55, 0, 0x87) != 0x01)
 			return(MMC_INIT);
+
+      debug_putch('5');
 
 			//MMC_PORT |= 1<<MMC_CS; spi_send_ff(); // delay
 
@@ -176,6 +198,8 @@ static inline uint8_t mmc_init(void)
 		//if (res == 0 || res == 5) break;
 		if (res == 0 ) break;
 	}
+  debug_putch('4');
+
 
 	// CMD58 CRC?
 	// CMD10 set block length 512
@@ -449,6 +473,7 @@ static inline uint8_t match_filename(direntry_t * dir) {
 	/* if file is empty, return */
 	if ((dir->fstclust == 0))
 		return false;
+  debug_putch('.');
 
 	/* fill in the file structure */
 	file.startcluster = dir->fstclust;
@@ -457,42 +482,28 @@ static inline uint8_t match_filename(direntry_t * dir) {
 	file.next = buff + 512; /* this triggers a new sector load when reading first byte... */
 
 	// compare name to EEPROM 8.3, 11 chars
-uint8_t ch =0;
-	for (i=0; i<11; i++) 
-		//if (get_eeprom((void *)EEPROM_FILENAME_ADDR - i) != dir->name[i])
-#if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
-		while(EECR & (1<<EEPE));
-		EEAR = (uint16_t)(void *)EEPROM_FILENAME_ADDR -i;
-		EECR |= (1<<EERE);
-		ch = EEDR;
-#else
-		ch = eeprom_read_byte((void *)EEPROM_FILENAME_ADDR - i);
-#endif
+  uint8_t ch;
+	for (i=0; i<11; i++) {
+    READ_EEPROM(ch, (EEPROM_FILENAME_ADDR - i))
+    //debug_putch(ch);
 		if (ch != dir->name[i])
 			return false;
-		
-	// match
-	return true;
+  }
+	return true;  // match
 }
 
 void mmc_updater() {
-#ifndef BOOT_TOGGLE
-  /*
-	//if (!check_eeprom_toggle()) return;
-#if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
-		while(EECR & (1<<EEPE));
-		EEAR = (uint16_t)(void *)EEPROM_TOGGLE_ADDR;
-		EECR |= (1<<EERE);
-		if (EEDR == 0xff) return;
-#else
-		if (eeprom_read_byte((void *)EEPROM_TOGGLE_ADDR) == 0xff) return;
-#endif
-    */
-    uint8_t i; READ_EEPROM(i, EEPROM_TOGGLE_ADDR)
-    if (i == 0xff) return;
-#endif
+  debug_putch('X');
+  debug_uart();
+
+  uint8_t i; READ_EEPROM(i, EEPROM_TOGGLE_ADDR)
+  if (i == 0xff) return;
+
+  debug_putch('B');
 
 	if (fat16_init() != 0) return;	
+
+  debug_putch('I');
 
 	uint32_t dirsector = RootDirRegionStartSec;
 
@@ -504,8 +515,13 @@ void mmc_updater() {
 		// check each file
 		uint8_t i;
 		for (i = 0; i < 16; i++) {
+      debug_putch('f');
+
 			direntry_t* dir = (direntry_t *) buff + i;
 			if (match_filename(dir)) {
+
+        debug_putch('M');
+
 				read_hex_file();
 				return;
 			}

@@ -23,6 +23,7 @@ LFUSE=FF
 #LFUSE=FF
 EFUSE=FE
 HFUSE=DA
+HFUSE=D2  # save eeprom
 LFUSE=FF
 ;;
 "atmega1280")
@@ -32,11 +33,11 @@ LFUSE=FF
 ;;
 esac
 
-
 #avrdude -c ${ISPTOOL} -p ${MCU_TARGET} -P ${ISPPORT} ${ISPSPEED} -e -u -U efuse:w:0x${EFUSE}:m -U hfuse:w:0x${HFUSE}:m -U lfuse:w:0x${LFUSE}:m
 #if [[ $? != 0 ]];
 #then
 #exit 1
 #fi
 #sleep 3
+#avrdude -c ${ISPTOOL} -p ${MCU_TARGET} -P ${ISPPORT} ${ISPSPEED} -U lock:w:0x3f:m -U eeprom:w:eeprom.hex flash:w:$1 -U lock:w:0x0f:m
 avrdude -c ${ISPTOOL} -p ${MCU_TARGET} -P ${ISPPORT} ${ISPSPEED} -U lock:w:0x3f:m -U flash:w:$1 -U lock:w:0x0f:m

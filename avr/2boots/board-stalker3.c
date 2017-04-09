@@ -53,8 +53,8 @@ void main(void)
 	WDTCSR = 0;
 
 #ifdef BOOT_TOGGLE  // eeprom flag forces bootloader to run
-  uint8_t toggle; READ_EEPROM(toggle, EEPROM_TOGGLE_ADDR)
-	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) || toggle != 0xff ) {
+  int8_t toggle; READ_EEPROM(toggle, EEPROM_TOGGLE_ADDR)
+	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) || toggle != -1 ) {
 #else
 	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) ) {      // If external reset
 #endif
@@ -72,7 +72,10 @@ void main(void)
 
 #ifdef BOOT_TOGGLE
     // clear flag to avoid oo
-    WRITE_EEPROM(EEPROM_TOGGLE_ADDR, 0xff)
+    //WRITE_EEPROM(EEPROM_TOGGLE_ADDR, 0xff)
+    if (toggle != -1)
+      WRITE_EEPROM(EEPROM_TOGGLE_ADDR, -1)
+    //WRITE_EEPROM(EEPROM_TOGGLE_ADDR, toggle-1)
 #endif
 
     /* we reset via watchdog in order to reset all the registers to their default values */
