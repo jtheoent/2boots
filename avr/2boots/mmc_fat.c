@@ -48,7 +48,7 @@
 void setup_uart();
 void putch(char);
 
-#define DEBUG 1
+#define DEBUG 0
 
 #define debug_putch(_x) \
   if(DEBUG) { putch(_x); }
@@ -171,9 +171,11 @@ debug_putch('P');
 	spi_send_ff();
 	spi_send_ff();
 
+  /*
 	for (i=255; i;i--) {
 	spi_send_ff();
   }
+  */
 
 		//MMC_PORT |= 1<<MMC_CS; spi_send_ff();
 
@@ -441,39 +443,13 @@ static inline void read_hex_file(void) {
 
 /* ----[ directory entry checks ]--------------------------------------------------- */
 
-/*
-static uint8_t read_eeprom(void *addr) {
-#if defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__)
-		while(EECR & (1<<EEPE));
-		EEAR = addr;
-		EECR |= (1<<EERE);
-		return EEDR;
-		//return eeprom_read_byte(addr);
-#else
-		return eeprom_read_byte(addr);
-#endif
-}
-
-void write_eeprom(void *addr, uint8_t byte) {
-#if defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__)
-  while(EECR & (1<<EEPE));
-  EEAR = addr;
-  EEDR = byte;
-  EECR |= (1<<EEMPE);
-  EECR |= (1<<EEPE);
-#else
-  eeprom_write_byte(E2END, 0xff);
-#endif
-}
-*/
-
 static inline uint8_t match_filename(direntry_t * dir) {
 	uint8_t i;
 
 	/* if file is empty, return */
 	if ((dir->fstclust == 0))
 		return false;
-  debug_putch('.');
+  debug_putch(':');
 
 	/* fill in the file structure */
 	file.startcluster = dir->fstclust;
@@ -485,7 +461,7 @@ static inline uint8_t match_filename(direntry_t * dir) {
   uint8_t ch;
 	for (i=0; i<11; i++) {
     READ_EEPROM(ch, (EEPROM_FILENAME_ADDR - i))
-    //debug_putch(ch);
+    //debug_putch(dir->name[i]);
 		if (ch != dir->name[i])
 			return false;
   }
@@ -496,8 +472,10 @@ void mmc_updater() {
   debug_putch('X');
   debug_uart();
 
+//#ifndef BOOT_TOGGLE
   uint8_t i; READ_EEPROM(i, EEPROM_TOGGLE_ADDR)
   if (i == 0xff) return;
+//#endif
 
   debug_putch('B');
 

@@ -20,6 +20,12 @@ AVRSIZE  = avr-size
 override CFLAGS  = -g -Wall $(OPTIMIZE) -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS)
 override LDFLAGS = -Wl,$(LDSECTION) -Wl,--relax -nostartfiles -Wl,--gc-sections
 
+# NEW
+OPTIMIZE = -mno-interrupts -funsigned-char -funsigned-bitfields -Os -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -mrelax
+override CFLAGS  = -x c $(OPTIMIZE) -g2 -Wall -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS) -std=gnu99 -flto
+override LDFLAGS = -Wl,$(LDSECTION) -nostartfiles -nodefaultlibs -nostdlib -nostartfiles -Wl,--gc-sections -mrelax -mmcu=$(MCU) -flto -Os
+
+
 # these are our actual source files
 # the BOARD variable will be replaced later, depending on which board is beeing compiled
 SRC = $(BOARD).c stk500v1.c mmc_fat.c prog_flash.c
