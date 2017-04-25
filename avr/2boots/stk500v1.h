@@ -32,5 +32,7 @@
 #define _stk500v1_h_
 
 void stk500v1();
+void setup_uart();
+void putch(char);
 
 #endif /* _stk500v1_h_ */

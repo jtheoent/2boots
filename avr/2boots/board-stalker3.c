@@ -38,7 +38,7 @@
 int main (void) __attribute__ ((OS_main,section (".init9"),externally_visible));
 
 /* some variables */
-const void (*app_start)(void) = 0x0000;
+void (* const app_start)(void) = 0x0000;
 uint8_t reset_reason = 0;
 
 /* main program starts here */

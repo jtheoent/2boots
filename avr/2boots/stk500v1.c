@@ -357,8 +357,8 @@ static inline void handle_read(addr_t address, uint16_t len, uint8_t eeprom_flag
 /* stk500v1 protocol ---------------------------------- */
 
 typedef union length_union {
-	uint16_t word;
-	uint8_t  byte[2];
+  uint16_t word;
+  uint8_t  byte[2];
 } length_t;
 
 void stk500v1() {

@@ -45,9 +45,6 @@
 #define SD_SUPPORT
 //#define MMC_SUPPORT
 
-void setup_uart();
-void putch(char);
-
 #define DEBUG 0
 
 #define debug_putch(_x) \
@@ -158,7 +155,7 @@ debug_putch('P');
 #ifdef SD_SUPPORT
 
 	// CMD8
-	if (res = send_cmd(MMC_CMD8, 0x01aa, 0x87) != 0x01)
+	if ((res = send_cmd(MMC_CMD8, 0x01aa, 0x87)) != 0x01)
 		return(MMC_INIT);
   debug_putch('8');
 
@@ -182,7 +179,7 @@ debug_putch('P');
 	for (i=255; i;i--) {
 
 		// CMD55
-		if (res = send_cmd(MMC_CMD55, 0, 0x87) != 0x01)
+		if ((res = send_cmd(MMC_CMD55, 0, 0x87)) != 0x01)
 			return(MMC_INIT);
 
       debug_putch('5');
@@ -461,7 +458,7 @@ static inline uint8_t match_filename(direntry_t * dir) {
   uint8_t ch;
 	for (i=0; i<11; i++) {
     READ_EEPROM(ch, (EEPROM_FILENAME_ADDR - i))
-    //debug_putch(dir->name[i]);
+    debug_putch(dir->name[i]);
 		if (ch != dir->name[i])
 			return false;
   }
