@@ -33,12 +33,12 @@
 #include <inttypes.h>
 
 #ifdef LARGE_ADDR_SPACE
-typedef uint32_t flashAddress;
+typedef uint32_t addr_t;
 #else
-typedef uint16_t flashAddress;
+typedef uint16_t addr_t;
 #endif
 
 extern uint8_t pagebuffer[SPM_PAGESIZE];
-void write_flash_page(flashAddress address);
+void write_flash_page(addr_t address);
 
 #endif

@@ -34,7 +34,7 @@ uint8_t pagebuffer[SPM_PAGESIZE];
 
 /* access to flash memory------------------------------------------ */
 
-void write_flash_page(flashAddress address)
+void write_flash_page(addr_t address)
 {
 	uint16_t i = 0;
 

@@ -35,14 +35,14 @@
 #include "eeprom.h"
 
 /* function prototype */
-void main (void) __attribute__ ((naked,section (".init9"),externally_visible));
+int main (void) __attribute__ ((OS_main,section (".init9"),externally_visible));
 
 /* some variables */
 const void (*app_start)(void) = 0x0000;
 uint8_t reset_reason = 0;
 
 /* main program starts here */
-void main(void)
+int main(void)
 {
 	/* here we learn how we were reset */
 	reset_reason = MCUSR;
@@ -59,11 +59,6 @@ void main(void)
 	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) ) {      // If external reset
 #endif
      
-    /* this is needed because of the __attribute__ naked, section .init 9 */
-    /* from now, we can call functions :-) */
-    asm volatile ( "clr __zero_reg__" );
-    SP=RAMEND;
-
     stk500v1();
 
 #ifdef MMC_CS

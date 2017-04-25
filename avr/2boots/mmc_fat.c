@@ -406,7 +406,7 @@ static uint8_t file_read_hex(void) {
 static inline void read_hex_file(void) {
 	uint8_t num_flash_words = 0;
 	uint8_t* out = pagebuffer;
-	flashAddress address = 0;
+	addr_t address = 0;
 	while (file.size)
 	{
 		if (num_flash_words)
