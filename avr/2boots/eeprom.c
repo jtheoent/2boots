@@ -17,7 +17,7 @@
 /* License for more details.                              */
 /*                                                        */
 /* You should have received a copy of the GNU General     */
-/* Public License along with this program; if not, write  */
+/* PublicLicense along with this program; if not, write  */
 /* to the Free Software Foundation, Inc.,                 */
 /* 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
 /*                                                        */
@@ -31,11 +31,15 @@
 #endif
 #include "eeprom.h"
 
+#define sbi(port,bit)  __asm__ __volatile__ ( "sbi %0, %1" :: "I" (_SFR_IO_ADDR(port)),"I" (bit))
+#define cbi(port,bit)  __asm__ __volatile__ ( "cbi %0, %1" :: "I" (_SFR_IO_ADDR(port)),"I" (bit))
+
 inline uint8_t get_eeprom(void *addr) {
 #if defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__)
   while(EECR & (1<<EEPE));
   EEAR = addr;
-  EECR |= (1<<EERE);
+  //EECR |= (1<<EERE);
+  sbi(EECR,EERE);
   return EEDR;
 #else
   return eeprom_read_byte(addr);
@@ -51,8 +55,11 @@ void put_eeprom(void *addr, uint8_t byte) {
   while(EECR & (1<<EEPE));
   EEAR = addr;
   EEDR = byte;
-  EECR |= (1<<EEMPE);
-  EECR |= (1<<EEPE);
+  //EECR |= (1<<EEMPE);
+  sbi(EECR,EEMPE);
+  //EECR |= (1<<EEPE);
+  sbi(EECR,EEPE); //You need to set EEPE within four clock cycles to `enter code here`initiate writing.
+
 #else
   eeprom_write_byte(addr, byte);
 #endif

@@ -402,13 +402,15 @@ static uint8_t file_read_hex(void) {
 // read current file, convert it from intel hex and flash it
 static inline void read_hex_file(void) {
 	uint8_t num_flash_words = 0;
+	uint8_t crc;
 	uint8_t* out = pagebuffer;
 	addr_t address = 0;
 	while (file.size)
 	{
-		if (num_flash_words)
-		{
-			*out++ = file_read_hex();             // read (de-hexify)
+		if (num_flash_words) {
+			*out = file_read_hex();             // read (de-hexify)
+      //crc += *out;
+      out++;
 			num_flash_words--;
 		
 			// if pagebuffer is full
@@ -417,23 +419,45 @@ static inline void read_hex_file(void) {
 				address += SPM_PAGESIZE;
 				out = pagebuffer;
 			}
-		} 
-		else
-		{
+		} else {
 			if (file_read_byte() == ':') {        // skip bytes until we find another ':'
 				num_flash_words = file_read_hex();  // number of words on this line
 				file.next+=4;                       // skip 4 bytes of address
 #ifdef LARGE_ADDR_SPACE
 				uint8_t recordt = file_read_hex();
-				if (recordt == 0) continue;
-				else if (recordt == 1) break;
-				else num_flash_words = 0;
+				if (recordt == 0) {
+          //crc = 0;
+          continue;
+        } else
+          if (recordt == 1) break;
+          else num_flash_words = 0;
 #else
 				if (file_read_hex()) break;         // 00 for data, 01 end of file
+        //else crc = 0;
 #endif
 			}
 		}
 	}
+	if (out != pagebuffer) write_flash_page(address);
+}
+
+// read current file, directly as binary
+static inline void read_bin_file(void) {
+	uint8_t* out = pagebuffer;
+	addr_t address = 0;
+  uint16_t len;
+
+  for (len = file.size; len ; len--) {
+			*out = file_read_byte();
+      out++;
+		
+			// if pagebuffer is full
+			if (out - pagebuffer == SPM_PAGESIZE) {
+				write_flash_page(address);          // write page
+				address += SPM_PAGESIZE;
+				out = pagebuffer;
+			}
+  }
 	if (out != pagebuffer) write_flash_page(address);
 }
 
@@ -498,6 +522,7 @@ void mmc_updater() {
         debug_putch('M');
 
 				read_hex_file();
+				read_bin_file();
 				return;
 			}
 		}

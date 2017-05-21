@@ -288,19 +288,6 @@ static inline addr_t handle_addr(void) {
 		addr_t address = *((uint16_t*) &pagebuffer[0]);
 		return address << 1;	        // address * 2 -> byte location
 }
-/*
-static inline uint16_t handle_addr(void) {
-	union address_union {
-		uint16_t word;
-		uint8_t  byte[2];
-	} local_address;
-
-	local_address.byte[0] = pagebuffer[0];
-	local_address.byte[1] = pagebuffer[1];
-	
-	return local_address.word << 1;   // address * 2 -> byte location
-}
-*/
 
 static inline void handle_spi() {
 	if (pagebuffer[0] == 0x30) {

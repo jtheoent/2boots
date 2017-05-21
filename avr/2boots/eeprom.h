@@ -27,6 +27,8 @@
 #ifndef _eeprom_h_
 #define _eeprom_h_
 
+//#include <avr/eeprom.h>
+
 #define EEPROM_TOGGLE_ADDR    E2END
 
 #ifdef BOOT_TOGGLE
@@ -37,11 +39,13 @@
 
 #if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
   #define WRITE_EEPROM(_addr, _value) \
+    { \
       while(EECR & (1<<EEPE)); \
- 			EEAR = (uint16_t)(void *)_addr; \
- 			EEDR = (uint8_t)_value; \
- 			EECR |= (1<<EEMPE);\
- 			EECR |= (1<<EEPE);
+ 			EEAR = (uint16_t)(void *)(_addr); \
+ 			EEDR = (uint8_t)(_value); \
+ 			EECR |= (1<<EEMPE); \
+ 			EECR |= (1<<EEPE); \
+    }
 #else
   #define WRITE_EEPROM(_addr, _value) \
     eeprom_write_byte(_addr, _value);
@@ -49,7 +53,7 @@
 
 #if defined(__AVR_ATmega168__)  || defined(__AVR_ATmega328P__)
   #define READ_EEPROM(_var, _addr) \
-    while(EECR & (1<<EEPE)); \
+    while(EECR & (1<<EEPE));  \
     EEAR = (uint16_t)(void *)_addr; \
     EECR |= (1<<EERE); \
     _var = EEDR;

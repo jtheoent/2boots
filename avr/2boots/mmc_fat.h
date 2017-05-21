@@ -186,6 +186,7 @@ typedef struct
 } fatsector_t;
 
 
+//void mmc_updater() __attribute__((used));
 void mmc_updater();
 //uint8_t get_eeprom(void *);
 

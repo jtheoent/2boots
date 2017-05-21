@@ -1,5 +1,3 @@
-# 2boots Makefile
-# (c) 2011-2017 thomas seiler      (thseiler@gmail.com)
 # 
 
 # 'all' is the default target: 
@@ -15,10 +13,13 @@ CC       = /Applications/Arduino2.app/Contents/Java/hardware/tools/avr/bin/avr-g
 OBJCOPY  = avr-objcopy
 OBJDUMP  = avr-objdump
 OPTIMIZE = -mno-interrupts -funsigned-char -funsigned-bitfields -Os -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -mrelax
+OPTIMIZE = -mno-interrupts -funsigned-char -funsigned-bitfields -Os -fpack-struct -fshort-enums -mrelax
 AVRSIZE  = avr-size
 
-override CFLAGS  = -x c $(OPTIMIZE) -g2 -Wall -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS) -std=gnu99 -flto
-override LDFLAGS = -Wl,$(LDSECTION) -nostartfiles -nodefaultlibs -nostdlib -nostartfiles -Wl,--gc-sections -mrelax -mmcu=$(MCU) -flto -Os
+override CFLAGS  = -x c $(OPTIMIZE) -g2 -Wall -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS) -std=gnu99 -flto -Os #-I /usr/local/include/avr
+#override CFLAGS  = -x c $(OPTIMIZE) -g2 -Wall -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS) -std=gnu99 -Os
+override LDFLAGS = -Wl,$(LDSECTION) -nostartfiles -nodefaultlibs -nostdlib -Wl,--gc-sections -mrelax -mmcu=$(MCU) -flto -Os
+override LDFLAGS = -nostartfiles -nodefaultlibs -Wl,--gc-sections -mrelax -mmcu=$(MCU) $(JUMPSECTION) -Wl,$(LDSECTION)
 
 
 # these are our actual source files
@@ -57,6 +58,7 @@ board-stalker3: FCPUS = 8000000L
 board-stalker3: MCUS = atmega328p
 board-stalker3: MMC_CSS = PORTB2
 board-stalker3: DEFS += -DBOOT_TOGGLE
+board-stalker3: JUMPSECTION := -Wl,--section-start=.jumps=0x7ffc -Wl,--undefined=_jumptable
 
 
 # set certain variables per MCU
@@ -101,7 +103,7 @@ board-stalker3: DEFS += -DBOOT_TOGGLE
 	@echo
 	@echo sucessfully compiled to build/$(ELFNAME)
 	@$(AVRSIZE) build/$(ELFNAME)
-	$(OBJCOPY) -j .text -j .data -O ihex build/$(ELFNAME) build/$(HEXNAME)	
+	$(OBJCOPY) -j .text -j .data -j .jumps -O ihex build/$(ELFNAME) build/$(HEXNAME)	
 	@echo 
 
 
@@ -112,7 +114,7 @@ board-stalker3: DEFS += -DBOOT_TOGGLE
 	$(OBJDUMP) -h -S build/$< > build/$@
 
 %.hex: %.elf %.lst
-	$(OBJCOPY) -j .text -j .data -O ihex build/$< build/$@	
+	$(OBJCOPY) -j .text -j .data -j .jumps -O ihex build/$< build/$@	
 
 %.srec: %.elf
 	$(OBJCOPY) -j .text -j .data -O srec build/$< build/$@
