@@ -16,7 +16,9 @@ OPTIMIZE = -mno-interrupts -funsigned-char -funsigned-bitfields -Os -ffunction-s
 OPTIMIZE = -mno-interrupts -funsigned-char -funsigned-bitfields -Os -fpack-struct -fshort-enums -mrelax
 AVRSIZE  = avr-size
 
-override CFLAGS  = -x c $(OPTIMIZE) -g2 -Wall -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS) -std=gnu99 -flto -Os #-I /usr/local/include/avr
+override CFLAGS  = -x c $(OPTIMIZE) -g2 -Wall -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS) -std=gnu99 -flto -Os
+#override CFLAGS  = -x c $(OPTIMIZE) -g2 -Wall -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS) -std=gnu99 -flto -Os -I /usr/local/include/avr
+#/Applications/Arduino2.app/Contents/Java/hardware/tools/avr/include
 #override CFLAGS  = -x c $(OPTIMIZE) -g2 -Wall -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS) -std=gnu99 -Os
 override LDFLAGS = -Wl,$(LDSECTION) -nostartfiles -nodefaultlibs -nostdlib -Wl,--gc-sections -mrelax -mmcu=$(MCU) -flto -Os
 override LDFLAGS = -nostartfiles -nodefaultlibs -Wl,--gc-sections -mrelax -mmcu=$(MCU) $(JUMPSECTION) -Wl,$(LDSECTION)
@@ -48,10 +50,10 @@ board-%: MCUS = atmega328p
 board-%: MMC_CSS = nommc
 
 #arduino
-board-arduino: FCPUS = 8000000L 16000000L
-board-arduino: MCUS = atmega168 atmega328p atmega1280
-board-arduino: MCUS = atmega168 atmega328p
-board-arduino: MMC_CSS = nommc PORTD4
+#board-arduino: FCPUS = 8000000L 16000000L
+#board-arduino: MCUS = atmega168 atmega328p atmega1280
+#board-arduino: MCUS = atmega168 atmega328p
+#board-arduino: MMC_CSS = nommc PORTD4
 
 #stalker:
 board-stalker3: FCPUS = 8000000L

@@ -4,7 +4,8 @@
 /* read a file from a FAT16 formatted MMC card            */
 /* Code taken from HolgerBootloader (public domain)       */
 /* from mikrokontroller.net and adapted for smaller size  */
-/* SD support and code shrink by @jtheorent               */
+/*                                                        */
+/* 2017 SD support and code improve/shrink by @jtheorent  */
 /*                                                        */
 /* -------------------------------------------------------*/
 /*                                                        */
@@ -56,7 +57,7 @@
 
 /* ---[ SPI Interface ]---------------------------------------------- */
 
-static void spi_send_byte(uint8_t data)
+static inline void spi_send_byte(uint8_t data)
 {
 	SPDR=data;
 	loop_until_bit_is_set(SPSR, SPIF); // wait for byte transmitted...
@@ -70,7 +71,7 @@ static void spi_send_ff(void)
 }
 
 
-static uint8_t send_cmd(uint8_t cmd, uint32_t params, uint8_t crc)
+static inline uint8_t send_cmd(uint8_t cmd, uint32_t params, uint8_t crc)
 {
 	uint8_t i;
 	uint8_t result;
@@ -219,7 +220,7 @@ debug_putch('P');
 }
 
 
-static inline uint8_t wait_start_byte(void) {
+static uint8_t wait_start_byte(void) {
 
 	uint8_t i;
 	
@@ -290,7 +291,7 @@ static struct _file_s {
 } file;
 
 
-static inline uint8_t fat16_init(void)
+static uint8_t fat16_init(void)
 {
 	mbr_t *mbr = (mbr_t*) buff;
 	vbr_t *vbr = (vbr_t*) buff;
@@ -327,7 +328,7 @@ static inline uint8_t fat16_init(void)
 
 /* ----[ file ]--------------------------------------------------- */
 
-static void inline fat16_readfilesector()
+static void fat16_readfilesector()
 {
 	uint16_t clusteroffset;
 	uint8_t currentfatsector;
@@ -387,7 +388,7 @@ static uint8_t file_read_byte() {	// read a byte from the open file from the mmc
 	return *file.next++;
 }
 
-static uint8_t inline gethexnib(char a) {
+static uint8_t gethexnib(char a) {
 	a = a & 0x1f;
 	if (a >= 0x10)
 		return a - 0x10;      // 0-9
@@ -400,7 +401,7 @@ static uint8_t file_read_hex(void) {
 }
 
 // read current file, convert it from intel hex and flash it
-static inline void read_hex_file(void) {
+static void read_hex_file(void) {
 	uint8_t num_flash_words = 0;
 	uint8_t crc;
 	uint8_t* out = pagebuffer;
@@ -442,7 +443,7 @@ static inline void read_hex_file(void) {
 }
 
 // read current file, directly as binary
-static inline void read_bin_file(void) {
+static void read_bin_file(void) {
 	uint8_t* out = pagebuffer;
 	addr_t address = 0;
   uint16_t len;
@@ -464,7 +465,7 @@ static inline void read_bin_file(void) {
 
 /* ----[ directory entry checks ]--------------------------------------------------- */
 
-static inline uint8_t match_filename(direntry_t * dir) {
+static uint8_t match_filename(direntry_t * dir) {
 	uint8_t i;
 
 	/* if file is empty, return */
@@ -493,11 +494,6 @@ void mmc_updater() {
   debug_putch('X');
   debug_uart();
 
-//#ifndef BOOT_TOGGLE
-  uint8_t i; READ_EEPROM(i, EEPROM_TOGGLE_ADDR)
-  if (i == 0xff) return;
-//#endif
-
   debug_putch('B');
 
 	if (fat16_init() != 0) return;	
@@ -522,7 +518,7 @@ void mmc_updater() {
         debug_putch('M');
 
 				read_hex_file();
-				read_bin_file();
+				//read_bin_file();
 				return;
 			}
 		}

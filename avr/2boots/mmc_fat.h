@@ -185,11 +185,6 @@ typedef struct
 	uint16_t fat_entry[256]; //0: Cluster unused, 1 - Clustercount: Next clusternum, 0xFFFF0 - 0xFFFF6: Reserved Cluster, 0xFFF7 dead Cluster, 0xFFF8 - 0xFFFF: EOF
 } fatsector_t;
 
-
-//void mmc_updater() __attribute__((used));
-void mmc_updater();
-//uint8_t get_eeprom(void *);
-
-
+void mmc_updater(void) __attribute__((externally_visible)); // referenced in jumptable section in board-stalker
 
 #endif /* _mmc_fat_h_ */

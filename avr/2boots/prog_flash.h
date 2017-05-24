@@ -39,6 +39,6 @@ typedef uint16_t addr_t;
 #endif
 
 extern uint8_t pagebuffer[SPM_PAGESIZE];
-void write_flash_page(addr_t address);
+void write_flash_page(addr_t address) __attribute__((externally_visible)); // referenced in jumptable section
 
 #endif
