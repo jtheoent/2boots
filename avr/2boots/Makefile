@@ -8,21 +8,15 @@
 .SECONDARY:
 
 # setup avr-gcc to compile very space efficient
-CC       = avr-gcc		# 6.2.0
-CC       = /Applications/Arduino2.app/Contents/Java/hardware/tools/avr/bin/avr-gcc # arduino 1.8.1 => gcc 4.9.2
+CC       = avr-gcc		# OS X gcc 6.2.0
+CC       = /Applications/Arduino2.app/Contents/Java/hardware/tools/avr/bin/avr-gcc # OS X arduino 1.8.2 => gcc 4.9.2
 OBJCOPY  = avr-objcopy
 OBJDUMP  = avr-objdump
 OPTIMIZE = -mno-interrupts -funsigned-char -funsigned-bitfields -Os -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -mrelax
-OPTIMIZE = -mno-interrupts -funsigned-char -funsigned-bitfields -Os -fpack-struct -fshort-enums -mrelax
 AVRSIZE  = avr-size
 
 override CFLAGS  = -x c $(OPTIMIZE) -g2 -Wall -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS) -std=gnu99 -flto -Os
-#override CFLAGS  = -x c $(OPTIMIZE) -g2 -Wall -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS) -std=gnu99 -flto -Os -I /usr/local/include/avr
-#/Applications/Arduino2.app/Contents/Java/hardware/tools/avr/include
-#override CFLAGS  = -x c $(OPTIMIZE) -g2 -Wall -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS) -std=gnu99 -Os
-override LDFLAGS = -Wl,$(LDSECTION) -nostartfiles -nodefaultlibs -nostdlib -Wl,--gc-sections -mrelax -mmcu=$(MCU) -flto -Os
-override LDFLAGS = -nostartfiles -nodefaultlibs -Wl,--gc-sections -mrelax -mmcu=$(MCU) $(JUMPSECTION) -Wl,$(LDSECTION)
-
+override LDFLAGS = -nostartfiles -nodefaultlibs -nostdlib -Wl,--gc-sections -mrelax -mmcu=$(MCU) -Wl,$(LDSECTION) $(JUMPSECTION) #-Wl,-Map,build/$@
 
 # these are our actual source files
 # the BOARD variable will be replaced later, depending on which board is beeing compiled
@@ -60,7 +54,7 @@ board-stalker3: FCPUS = 8000000L
 board-stalker3: MCUS = atmega328p
 board-stalker3: MMC_CSS = PORTB2
 board-stalker3: DEFS += -DBOOT_TOGGLE
-board-stalker3: JUMPSECTION := -Wl,--section-start=.jumps=0x7ffc -Wl,--undefined=_jumptable
+board-stalker3: JUMPSECTION := -Wl,--section-start=.jumps=0x7ffa -Wl,--undefined=_jumptable
 
 
 # set certain variables per MCU

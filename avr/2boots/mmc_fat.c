@@ -126,7 +126,7 @@ uint8_t address_scale = 0;  // bits to shift address, 0 if block addressing, 9 f
 */
 static inline uint8_t mmc_init(void)
 {
-	uint8_t i;
+	uint16_t i;
 	uint8_t res;
 
 	SPI_DDR |= 1<<SPI_CLK | 1<<SPI_MOSI | 1<<SPI_SS; //SPI Data -> Output
@@ -158,7 +158,8 @@ debug_putch('P');
 	// CMD8
 	if ((res = send_cmd(MMC_CMD8, 0x01aa, 0x87)) != 0x01)
 		return(MMC_INIT);
-  debug_putch('8');
+  DEBUG_CMD8
+  //debug_putch('8');
 
   // get 4-byte response
   // this is where the card declares the voltage levels it can support.
@@ -177,19 +178,19 @@ debug_putch('P');
 
 		//MMC_PORT |= 1<<MMC_CS; spi_send_ff();
 
-	for (i=255; i;i--) {
+	for (i=512; i;i--) {
 
 		// CMD55
 		if ((res = send_cmd(MMC_CMD55, 0, 0x87)) != 0x01)
 			return(MMC_INIT);
 
-      debug_putch('5');
+    DEBUG_CMD55
+    debug_putch('5');
 
-			//MMC_PORT |= 1<<MMC_CS; spi_send_ff(); // delay
+    //MMC_PORT |= 1<<MMC_CS; spi_send_ff(); // delay
 
 
 		// ACDM41
-
 		res = send_cmd(MMC_ACMD41, 0x40100000, 0xcd);  // 0x40100000:0xcd SDHC 3.2-3.3v, 0x40000000:0x77, 0x00100000:0x5f SD 3.2-3.3v
 
 			//MMC_PORT |= 1<<MMC_CS; spi_send_ff();
@@ -201,13 +202,13 @@ debug_putch('P');
   debug_putch('4');
 
 
-	// CMD58 CRC?
+	// CMD58 set CRC?
 	// CMD10 set block length 512
 	// res=send_cmd(MMC_CMD10, 0x200, 0xff);
 
 #endif //SD_SUPPORT
 #ifdef MMC_SUPPORT
-	for (i=255; i;i--) {  // maybe too SHORT for some of cards!
+	for (i=512; i;i--) {
 		if (res=send_cmd(MMC_SEND_OP_COND, 0, 0) == 0)
 			break;
 		MMC_PORT |= 1<<MMC_CS; spi_send_ff(); spi_send_ff();
@@ -327,6 +328,7 @@ static uint8_t fat16_init(void)
 }
 
 /* ----[ file ]--------------------------------------------------- */
+//char file_name[9];
 
 static void fat16_readfilesector()
 {
@@ -467,10 +469,30 @@ static void read_bin_file(void) {
 
 static uint8_t match_filename(direntry_t * dir) {
 	uint8_t i;
+	//uint8_t len;
+  //char match[9];
+  //char fname[9];
+
+  /*
+	for (len=0; len<9; len++) {
+    match[len] = file_name[len];
+  }
+  */
+   
+   /*
+    char c;
+    c = file_name[len];
+    if (c != 0xff)
+      match[len] = c;
+    else
+      break;
+  }
+    */
 
 	/* if file is empty, return */
 	if ((dir->fstclust == 0))
 		return false;
+  //DEBUG_FILE_EMPTY
   debug_putch(':');
 
 	/* fill in the file structure */
@@ -480,24 +502,56 @@ static uint8_t match_filename(direntry_t * dir) {
 	file.next = buff + 512; /* this triggers a new sector load when reading first byte... */
 
 	// compare name to EEPROM 8.3, 11 chars
-  uint8_t ch;
+  char ch;
 	for (i=0; i<11; i++) {
-    READ_EEPROM(ch, (EEPROM_FILENAME_ADDR - i))
     debug_putch(dir->name[i]);
+    READ_EEPROM(ch, EEPROM_FILENAME_ADDR - i)
+    //if ( match[i] && match[i] != dir->name[i] )
+    //if ( file_name[i] && file_name[i] != dir->name[i] )
+    //if ( ch != 0xff && ch != dir->name[i] )
+    if ( ch !=0xff && ch != dir->name[i] )
+      return false;
+
+    /*
 		if (ch != dir->name[i])
 			return false;
+    */
   }
+
+  /*
+  char ext[3] = "HEX";
+	for (i=0; i<2; i++) {
+    if (dir->name[9+i] != ext[i]) {
+      return false;
+    }
+  }
+  */
+
+  /*
+  for (i=0 ; i<3; i++) {
+    (dir->name[9+i] != 'H' || dir->name[10] != 'E' || dir->name[11] != 'X' )
+  */
+
+  /*
+  if (dir->name[9] != 'H' || dir->name[10] != 'E' || dir->name[11] != 'X' )
+    */
+  //if (dir->name[9] != 'H' || dir->name[11] != 'X' )
+    //return false;
+
 	return true;  // match
 }
 
-void mmc_updater() {
+uint8_t mmc_updater() {
   debug_putch('X');
   debug_uart();
 
+  //DEBUG_IN_MMC_UPDATER
   debug_putch('B');
 
+  //DEBUG_FAT_INIT
 	if (fat16_init() != 0) return;	
 
+  //DEBUG_CHECK_FILES
   debug_putch('I');
 
 	uint32_t dirsector = RootDirRegionStartSec;
@@ -510,21 +564,24 @@ void mmc_updater() {
 		// check each file
 		uint8_t i;
 		for (i = 0; i < 16; i++) {
+      //DEBUG_CHECK_FILENAME
       debug_putch('f');
 
 			direntry_t* dir = (direntry_t *) buff + i;
 			if (match_filename(dir)) {
 
+        //DEBUG_MATCH
         debug_putch('M');
 
 				read_hex_file();
 				//read_bin_file();
-				return;
+				return 1;
 			}
 		}
 		dirsector++;
 
 	} while(--RootDirRegionSize);
+  return 0;
 }
 
 #endif // MMC_CS

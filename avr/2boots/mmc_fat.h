@@ -96,6 +96,20 @@ extern uint8_t buff[512];
 #define MMC_CMDERROR    3
 #define MMC_TIMEOUT     4
 
+// debug
+#define debug_putch(_x) \
+  if(DEBUG) { putch(_x); }
+#define debug_uart() \
+  if(DEBUG) { setup_uart(); }
+
+#define DEBUG_CMD8
+#define DEBUG_CMD55
+#define DEBUG_FILE_EMPTY
+#define DEBUG_IN_MMC_UPDATER
+#define DEBUG_FAT_INIT
+#define DEBUG_CHECK_FILES
+#define DEBUG_CHECK_FILENAME
+#define DEBUG_MATCH
 
 /* ---[ FAT Structs ] --------------------------------------------- */
 
@@ -185,6 +199,9 @@ typedef struct
 	uint16_t fat_entry[256]; //0: Cluster unused, 1 - Clustercount: Next clusternum, 0xFFFF0 - 0xFFFF6: Reserved Cluster, 0xFFF7 dead Cluster, 0xFFF8 - 0xFFFF: EOF
 } fatsector_t;
 
-void mmc_updater(void) __attribute__((externally_visible)); // referenced in jumptable section in board-stalker
+//extern char file_name[9];
+
+//void mmc_updater(void);
+uint8_t mmc_updater(void) __attribute__((externally_visible)); // referenced in jumptable section in board-stalker
 
 #endif /* _mmc_fat_h_ */

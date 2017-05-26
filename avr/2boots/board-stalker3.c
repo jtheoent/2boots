@@ -34,10 +34,9 @@
 #include "mmc_fat.h"
 #include "eeprom.h"
 
-
-void appStart(void) __attribute__ ((naked));  //__attribute__((noreturn)) ;
-int main(void) __attribute__ ((OS_main,section (".init9"),externally_visible));
-
+int main(void)       __attribute__ ((OS_main,section (".init9"),externally_visible,noreturn));
+void appStart(void)  __attribute__((noreturn));
+void load_name(void) __attribute__((externally_visible,noreturn)); // referenced in jumptable section
 
 int main(void)
 {
@@ -48,17 +47,9 @@ int main(void)
 	MCUSR = 0;
 
 	/* stop watchdog */
+  asm("cli");
 	WDTCSR |= _BV(WDCE) | _BV(WDE);
 	WDTCSR = 0;
-
-  /*
-#ifdef BOOT_TOGGLE  // eeprom flag forces bootloader to run
-  uint8_t toggle; READ_EEPROM(toggle, EEPROM_TOGGLE_ADDR)
-	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) || toggle == 0 ) {
-#else
-	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) ) {      // If external reset
-#endif
-  */
 
 	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) ) {      // If external reset
 
@@ -68,25 +59,56 @@ int main(void)
     load_eeprom();
 #endif
 
-	/* we reset via watchdog in order to reset all the registers to their default values */
-	WDTCSR = _BV(WDE);
-	while (1); // 16 ms
-
-  } else {
-    //load_eeprom();
-    app_start();
+    /* we reset via watchdog in order to reset all the registers to their default values */
+    WDTCSR = _BV(WDE);
+    while (1); // 16 ms
   }
-}
 
+  app_start();
+  __builtin_unreachable();  // prove that we wont return
+}
 
 void toggle_clear() {
   WRITE_EEPROM(EEPROM_TOGGLE_ADDR, 0xff)
 }
 
+struct {
+  char name[8];
+  char ext[3];
+} filename_type;
+
+void load_name(void) {
+
+void * __builtin_frame_address (unsigned int level)
+
+  asm("cli");
+	asm volatile ("clr __zero_reg__");
+// copy stack?
+  SP=RAMEND;
+  mmc_updater();
+	WDTCSR = _BV(WDE);
+	while (1); // 16 ms
+  __builtin_unreachable();  // prove that we wont return
+}
+
 void load_eeprom(void) {
 #ifdef BOOT_TOGGLE
-  uint8_t toggle; READ_EEPROM(toggle, EEPROM_TOGGLE_ADDR)
+  //char c;
+  //uint8_t i;
+  uint8_t toggle;
+
+  READ_EEPROM(toggle, EEPROM_TOGGLE_ADDR)
   if (toggle == 0) {
+
+    /*
+    for (i=0; i<8; i++) {
+      READ_EEPROM(c, EEPROM_TOGGLE_ADDR)
+      if ( c == 0xff )
+        c = 0;
+      file_name[i] = c;
+    }
+    */
+
     mmc_updater();
 
     // clear flag to avoid oo
@@ -95,36 +117,26 @@ void load_eeprom(void) {
 #else
   mmc_updater();
 #endif
+
 }
 
-
 void app_start(void) {
-  //SP=RAMEND;
+  // Jump to RST vector
   __asm__ __volatile__ (
-    // Jump to RST vector
     "clr r30\n"
     "clr r31\n"
     "ijmp\n"
   );
+  __builtin_unreachable();  // prove that we wont return
 }
 
-
-// Include a jumptable at top of flash so application
+// Include a jumptable at top of flash so applications
 // can call bootloader routines
-
-//#pragma GCC push_options
-//#pragma GCC optimize ("no-lto")
-
 asm (	".section .jumps,\"ax\",@progbits\n"
 		".global _jumptable\n"
 		"_jumptable:\n"
 		"rjmp write_flash_page\n"
-		"rjmp mmc_updater\n"); 
-
-//__attribute__((optimize("no-lto")));
-
-//#pragma GCC optimize ("lto")
-//#pragma GCC pop_options
-//
+		"rjmp load_name\n"
+    ".section .text\n"); 
 
 /* end of file board-stalker3.c */
