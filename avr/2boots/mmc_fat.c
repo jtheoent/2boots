@@ -466,59 +466,27 @@ static void read_bin_file(void) {
 
 /* ----[ directory entry checks ]--------------------------------------------------- */
 
-filename_t f;
+//filename_t f;
 
-
-//static uint8_t match_filename(char *match, direntry_t * dir) {
 static uint8_t match_filename(direntry_t * dir) {
   char ch;
   uint8_t i = 0;
   uint8_t e;
 
-	/* if file is empty, return */
+	// if file is empty, return
 	if ((dir->fstclust == 0))
 		return false;
 
   //DEBUG_FILE_NOT_EMPTY
   debug_putch(':');
 
-	/* fill in the file structure */
+	// fill in the file structure
 	file.startcluster = dir->fstclust;
 	file.size = dir->filesize;
 	file.sector_counter = 0;
 	file.next = buff + 512; /* this triggers a new sector load when reading first byte... */
 
-  /*
-  uint8_t x; READ_EEPROM(x, 0) // totally bogus code which nonetheless reduces size by 80+ bytes!
-	for (i=0; i<11; i++) {
-    ch = f.name[i];
-  debug_putch(ch);
-    if ( ch && ch !=0xff && ch != dir->name[i] )
-      return false;
-  }
-  */
-  //uint8_t x; READ_EEPROM(x, 0) // totally bogus code which nonetheless reduces size by 80+ bytes!
-
-  char f[12];
-  for (i=0; i<8; i++){
-    f[i] =  ' ';
-  }
-  for (i=0; i<11; e++, i++) {
-
-    READ_EEPROM(ch, EEPROM_FILENAME_ADDR - i)
-
-    if (ch == '.') {
-      i=7;
-    } else {
-      f[i] = ch;
-    }
-  }
-	for (i=0; i<11; i++) {
-    if ( f[i] != dir->name[i] )
-      return false;
-  }
-
-  /*
+  // compare our format "TXE.ELIF" to direntry format "FILE____EXT"
 	while (i<11) {
     READ_EEPROM(ch, EEPROM_FILENAME_ADDR - e)
     //ch = f.name[i];
@@ -539,56 +507,6 @@ static uint8_t match_filename(direntry_t * dir) {
     }
     i++;
   }
-  */
-
-  /*
-  uint8_t e;
-	for (i=0, e=0; i<11; i++, e++) {
-    READ_EEPROM(ch, EEPROM_FILENAME_ADDR - e)
-    debug_putch(ch);
-
-    if (ch == '.') {
-      while(i < 8) {
-        if (dir->name[i] != ' ')
-          return false;
-        i++;
-      }
-      i--;
-    } else {
-      if ( ch != dir->name[i] ) {
-        return false;
-      }
-    }
-  }
-  */
-
-      /*
-      debug_putch('<');
-      uint8_t q;
-      for (q=0; q < 11; q++) {
-        debug_putch(dir->name[q]);
-      }
-      debug_putch('|');
-      for (q=0; q < 11; q++) {
-        ch = dir->name[q] / 16;
-        if (ch > 9)
-          ch += 'A' - 10;
-        else
-          ch += '0';
-        debug_putch( ch );
-        ch = dir->name[q] % 16;
-        if (ch > 9)
-          ch += 'A' - 10;
-        else
-          ch += '0';
-        debug_putch( ch );
-      }
-      debug_putch('>');
-    }
-      */
-    //if ( ch && ch !=0xff && dir->name[i] && ch != dir->name[i] )
-    //if ( ch && ch !=0xff && ch != dir->name[i] )
-
 	return true;  // match
 }
 
@@ -626,8 +544,8 @@ uint8_t mmc_updater() {
         //DEBUG_MATCH
         debug_putch('M');
 
-				//read_hex_file();
-				read_bin_file();
+				read_hex_file();
+				//read_bin_file();
 				return 1;
 			}
 		}

@@ -205,9 +205,6 @@ typedef struct {
 
 extern filename_t f;
 
-//extern file_name[12];
-
-//void mmc_updater(void);
 uint8_t mmc_updater(void) __attribute__((externally_visible)); // referenced in jumptable section in board-stalker
 //uint8_t mmc_updater(char *) __attribute__((externally_visible)); // referenced in jumptable section in board-stalker
 
