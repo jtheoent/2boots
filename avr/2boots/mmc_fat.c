@@ -496,13 +496,51 @@ static uint8_t match_filename(direntry_t * dir) {
       return false;
   }
   */
+  //uint8_t x; READ_EEPROM(x, 0) // totally bogus code which nonetheless reduces size by 80+ bytes!
 
-	for (i=0; i<11; i++) {
-    READ_EEPROM(ch, EEPROM_FILENAME_ADDR - i)
+  uint8_t e;
+	while (i<11) {
+    READ_EEPROM(ch, EEPROM_FILENAME_ADDR - e)
+    //ch = f.name[i];
     debug_putch(ch);
-    //if (ch == 0xff)
-       //ch = ' ';
+
+    if (ch == '.') {
+      if (i < 8) {
+        ch = ' ';
+      } else {
+        e++;
+        continue;
+      }
+    } else {
+      e++;
+    }
     if ( ch != dir->name[i] ) {
+      return false;
+    }
+    i++;
+  }
+
+  /********
+  uint8_t e;
+	for (i=0, e=0; i<11; i++, e++) {
+    READ_EEPROM(ch, EEPROM_FILENAME_ADDR - e)
+    debug_putch(ch);
+
+    if (ch == '.') {
+      while(i < 8) {
+        if (dir->name[i] != ' ')
+          return false;
+        i++;
+      }
+      i--;
+    } else {
+      if ( ch != dir->name[i] ) {
+        return false;
+      }
+    }
+  }
+  */
+
       /*
       debug_putch('<');
       uint8_t q;
@@ -525,12 +563,11 @@ static uint8_t match_filename(direntry_t * dir) {
         debug_putch( ch );
       }
       debug_putch('>');
-      */
-      return false;
     }
+      */
     //if ( ch && ch !=0xff && dir->name[i] && ch != dir->name[i] )
     //if ( ch && ch !=0xff && ch != dir->name[i] )
-  }
+
 	return true;  // match
 }
 

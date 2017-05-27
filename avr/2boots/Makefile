@@ -16,6 +16,7 @@ OPTIMIZE = -mno-interrupts -funsigned-char -funsigned-bitfields -Os -ffunction-s
 AVRSIZE  = avr-size
 
 override CFLAGS  = -x c $(OPTIMIZE) -g2 -Wall -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS) -std=gnu99 -flto -Os
+#override CFLAGS  = -x c $(OPTIMIZE) -g2 -w -mmcu=$(MCU) -DF_CPU=$(FCPU) $(DEFS) -std=gnu99 -flto -Os -I /Applications/Arduino2.app/Contents/Java/hardware/tools/avr/avr/include
 override LDFLAGS = -nostartfiles -nodefaultlibs -nostdlib -Wl,--gc-sections -mrelax -mmcu=$(MCU) -Wl,$(LDSECTION) $(JUMPSECTION) #-Wl,-Map,build/$@
 
 # these are our actual source files
