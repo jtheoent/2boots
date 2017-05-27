@@ -199,9 +199,16 @@ typedef struct
 	uint16_t fat_entry[256]; //0: Cluster unused, 1 - Clustercount: Next clusternum, 0xFFFF0 - 0xFFFF6: Reserved Cluster, 0xFFF7 dead Cluster, 0xFFF8 - 0xFFFF: EOF
 } fatsector_t;
 
-//extern char file_name[9];
+typedef struct {
+   char name[12];
+} filename_t;
+
+extern filename_t f;
+
+//extern file_name[12];
 
 //void mmc_updater(void);
 uint8_t mmc_updater(void) __attribute__((externally_visible)); // referenced in jumptable section in board-stalker
+//uint8_t mmc_updater(char *) __attribute__((externally_visible)); // referenced in jumptable section in board-stalker
 
 #endif /* _mmc_fat_h_ */

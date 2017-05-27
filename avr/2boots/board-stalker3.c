@@ -37,6 +37,8 @@
 int main(void)       __attribute__ ((OS_main,section (".init9"),externally_visible,noreturn));
 void appStart(void)  __attribute__((noreturn));
 void load_name(void) __attribute__((externally_visible,noreturn)); // referenced in jumptable section
+//void load_name(char *) __attribute__((externally_visible,noreturn)); // referenced in jumptable section
+void load_eeprom(void);
 
 int main(void)
 {
@@ -47,19 +49,22 @@ int main(void)
 	MCUSR = 0;
 
 	/* stop watchdog */
-  asm("cli");
 	WDTCSR |= _BV(WDCE) | _BV(WDE);
 	WDTCSR = 0;
 
 	if ( (reset_reason & _BV(EXTRF)) || (reset_reason & _BV(PORF)) ) {      // If external reset
 
+    asm("cli");
     stk500v1();
 
+    /*
 #ifdef MMC_CS
     load_eeprom();
 #endif
+    */
 
     /* we reset via watchdog in order to reset all the registers to their default values */
+    //asm("sei");
     WDTCSR = _BV(WDE);
     while (1); // 16 ms
   }
@@ -72,40 +77,58 @@ void toggle_clear() {
   WRITE_EEPROM(EEPROM_TOGGLE_ADDR, 0xff)
 }
 
-struct {
-  char name[8];
-  char ext[3];
-} filename_type;
 
-void load_name(void) {
+//void load_name(char *fname) {
+void load_name() {
 
-void * __builtin_frame_address (unsigned int level)
+//void * __builtin_frame_address (unsigned int level)
 
   asm("cli");
 	asm volatile ("clr __zero_reg__");
-// copy stack?
-  SP=RAMEND;
-  mmc_updater();
+
+  /*
+  // copy filename
+  uint8_t i = 0;
+  while (i++ < 11) {
+    file_name[i] = *(fname++);
+  }
+  */
+
+  /*
+  char *i = FILENAME;
+  while (i < (FILENAME+12)) {
+    *(i++) = *(fname++);
+  }
+  */
+
+  // reset stack to top of memory
+  //SP = FILENAME - 1;
+  SP = RAMEND;
+
+  //mmc_updater();
+  load_eeprom();
+
 	WDTCSR = _BV(WDE);
 	while (1); // 16 ms
   __builtin_unreachable();  // prove that we wont return
 }
 
+
 void load_eeprom(void) {
 #ifdef BOOT_TOGGLE
-  //char c;
-  //uint8_t i;
-  uint8_t toggle;
+  char c;
+  uint8_t i = 0;
 
-  READ_EEPROM(toggle, EEPROM_TOGGLE_ADDR)
-  if (toggle == 0) {
+
+  //if ( *((uint8_t *)RAMEND) == 0) {
+  READ_EEPROM(c, EEPROM_TOGGLE_ADDR)
+  if (c == 0) {
 
     /*
-    for (i=0; i<8; i++) {
-      READ_EEPROM(c, EEPROM_TOGGLE_ADDR)
-      if ( c == 0xff )
-        c = 0;
-      file_name[i] = c;
+    // copy eeprom filename to ram
+    for(i = 0; i< 11; i++) {
+      READ_EEPROM(c, EEPROM_FILENAME_ADDR - i)
+      f.name[i] = c;
     }
     */
 

@@ -51,7 +51,7 @@
  * ng and lillypad, where F_CPU>>1 was used. (which is longer!)
  * I think using F_CPU>>4 for all board is ok for this generic arduino header.
  */
-#define MAX_TIME_COUNT F_CPU>>2
+#define MAX_TIME_COUNT F_CPU>>4
 
 /* LED
  * This will be used to blink a LED during flashing

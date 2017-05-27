@@ -328,7 +328,6 @@ static uint8_t fat16_init(void)
 }
 
 /* ----[ file ]--------------------------------------------------- */
-//char file_name[9];
 
 static void fat16_readfilesector()
 {
@@ -467,32 +466,19 @@ static void read_bin_file(void) {
 
 /* ----[ directory entry checks ]--------------------------------------------------- */
 
-static uint8_t match_filename(direntry_t * dir) {
-	uint8_t i;
-	//uint8_t len;
-  //char match[9];
-  //char fname[9];
+filename_t f;
 
-  /*
-	for (len=0; len<9; len++) {
-    match[len] = file_name[len];
-  }
-  */
-   
-   /*
-    char c;
-    c = file_name[len];
-    if (c != 0xff)
-      match[len] = c;
-    else
-      break;
-  }
-    */
+
+//static uint8_t match_filename(char *match, direntry_t * dir) {
+static uint8_t match_filename(direntry_t * dir) {
+  char ch;
+  uint8_t i = 0;
 
 	/* if file is empty, return */
 	if ((dir->fstclust == 0))
 		return false;
-  //DEBUG_FILE_EMPTY
+
+  //DEBUG_FILE_NOT_EMPTY
   debug_putch(':');
 
 	/* fill in the file structure */
@@ -501,47 +487,55 @@ static uint8_t match_filename(direntry_t * dir) {
 	file.sector_counter = 0;
 	file.next = buff + 512; /* this triggers a new sector load when reading first byte... */
 
-	// compare name to EEPROM 8.3, 11 chars
-  char ch;
-	for (i=0; i<11; i++) {
-    debug_putch(dir->name[i]);
-    READ_EEPROM(ch, EEPROM_FILENAME_ADDR - i)
-    //if ( match[i] && match[i] != dir->name[i] )
-    //if ( file_name[i] && file_name[i] != dir->name[i] )
-    //if ( ch != 0xff && ch != dir->name[i] )
-    if ( ch !=0xff && ch != dir->name[i] )
-      return false;
-
-    /*
-		if (ch != dir->name[i])
-			return false;
-    */
-  }
-
   /*
-  char ext[3] = "HEX";
-	for (i=0; i<2; i++) {
-    if (dir->name[9+i] != ext[i]) {
+  uint8_t x; READ_EEPROM(x, 0) // totally bogus code which nonetheless reduces size by 80+ bytes!
+	for (i=0; i<11; i++) {
+    ch = f.name[i];
+  debug_putch(ch);
+    if ( ch && ch !=0xff && ch != dir->name[i] )
+      return false;
+  }
+  */
+
+	for (i=0; i<11; i++) {
+    READ_EEPROM(ch, EEPROM_FILENAME_ADDR - i)
+    debug_putch(ch);
+    //if (ch == 0xff)
+       //ch = ' ';
+    if ( ch != dir->name[i] ) {
+      /*
+      debug_putch('<');
+      uint8_t q;
+      for (q=0; q < 11; q++) {
+        debug_putch(dir->name[q]);
+      }
+      debug_putch('|');
+      for (q=0; q < 11; q++) {
+        ch = dir->name[q] / 16;
+        if (ch > 9)
+          ch += 'A' - 10;
+        else
+          ch += '0';
+        debug_putch( ch );
+        ch = dir->name[q] % 16;
+        if (ch > 9)
+          ch += 'A' - 10;
+        else
+          ch += '0';
+        debug_putch( ch );
+      }
+      debug_putch('>');
+      */
       return false;
     }
+    //if ( ch && ch !=0xff && dir->name[i] && ch != dir->name[i] )
+    //if ( ch && ch !=0xff && ch != dir->name[i] )
   }
-  */
-
-  /*
-  for (i=0 ; i<3; i++) {
-    (dir->name[9+i] != 'H' || dir->name[10] != 'E' || dir->name[11] != 'X' )
-  */
-
-  /*
-  if (dir->name[9] != 'H' || dir->name[10] != 'E' || dir->name[11] != 'X' )
-    */
-  //if (dir->name[9] != 'H' || dir->name[11] != 'X' )
-    //return false;
-
 	return true;  // match
 }
 
 uint8_t mmc_updater() {
+//uint8_t mmc_updater(char *match) {
   debug_putch('X');
   debug_uart();
 
@@ -568,13 +562,14 @@ uint8_t mmc_updater() {
       debug_putch('f');
 
 			direntry_t* dir = (direntry_t *) buff + i;
+			//if (match_filename(match, dir)) {
 			if (match_filename(dir)) {
 
         //DEBUG_MATCH
         debug_putch('M');
 
-				read_hex_file();
-				//read_bin_file();
+				//read_hex_file();
+				read_bin_file();
 				return 1;
 			}
 		}
