@@ -473,6 +473,7 @@ filename_t f;
 static uint8_t match_filename(direntry_t * dir) {
   char ch;
   uint8_t i = 0;
+  uint8_t e;
 
 	/* if file is empty, return */
 	if ((dir->fstclust == 0))
@@ -498,7 +499,26 @@ static uint8_t match_filename(direntry_t * dir) {
   */
   //uint8_t x; READ_EEPROM(x, 0) // totally bogus code which nonetheless reduces size by 80+ bytes!
 
-  uint8_t e;
+  char f[12];
+  for (i=0; i<8; i++){
+    f[i] =  ' ';
+  }
+  for (i=0; i<11; e++, i++) {
+
+    READ_EEPROM(ch, EEPROM_FILENAME_ADDR - i)
+
+    if (ch == '.') {
+      i=7;
+    } else {
+      f[i] = ch;
+    }
+  }
+	for (i=0; i<11; i++) {
+    if ( f[i] != dir->name[i] )
+      return false;
+  }
+
+  /*
 	while (i<11) {
     READ_EEPROM(ch, EEPROM_FILENAME_ADDR - e)
     //ch = f.name[i];
@@ -519,8 +539,9 @@ static uint8_t match_filename(direntry_t * dir) {
     }
     i++;
   }
+  */
 
-  /********
+  /*
   uint8_t e;
 	for (i=0, e=0; i<11; i++, e++) {
     READ_EEPROM(ch, EEPROM_FILENAME_ADDR - e)
