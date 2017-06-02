@@ -46,7 +46,7 @@
 #define SD_SUPPORT
 //#define MMC_SUPPORT
 
-#define DEBUG 0
+#define DEBUG 1
 
 #define debug_putch(_x) \
   if(DEBUG) { putch(_x); }
@@ -487,10 +487,22 @@ static uint8_t match_filename(direntry_t * dir) {
 	file.next = buff + 512; /* this triggers a new sector load when reading first byte... */
 
   // compare our format "TXE.ELIF" to direntry format "FILE____EXT"
-	while (i<11) {
+  //  test it works will full 8 char filename.  doesn't support less than 3 char ext
+	//while (i<11) {
+	while (i<8) {
     READ_EEPROM(ch, EEPROM_FILENAME_ADDR - e)
     //ch = f.name[i];
     debug_putch(ch);
+
+
+    /*
+    if ( ch != dir->name[i] )
+      return false;
+
+    i++;
+    e++;
+    */
+
 
     if (ch == '.') {
       if (i < 8) {
@@ -507,13 +519,23 @@ static uint8_t match_filename(direntry_t * dir) {
     }
     i++;
   }
+
+  /*
+  if ( dir->name[8] == 'H' &&
+       dir->name[9] == 'E' &&
+      dir->name[10] == 'X') return true;
+
+	return false;
+  */
+
+
 	return true;  // match
 }
 
 uint8_t mmc_updater() {
 //uint8_t mmc_updater(char *match) {
-  debug_putch('X');
   debug_uart();
+  debug_putch('X');
 
   //DEBUG_IN_MMC_UPDATER
   debug_putch('B');
@@ -544,8 +566,8 @@ uint8_t mmc_updater() {
         //DEBUG_MATCH
         debug_putch('M');
 
-				read_hex_file();
-				//read_bin_file();
+				//read_hex_file();
+				read_bin_file();
 				return 1;
 			}
 		}

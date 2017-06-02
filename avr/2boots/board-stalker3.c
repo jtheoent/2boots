@@ -122,7 +122,7 @@ void load_eeprom(void) {
 
   //if ( *((uint8_t *)RAMEND) == 0) {
   READ_EEPROM(c, EEPROM_TOGGLE_ADDR)
-  if (c == 0) {
+  //if (c == 0) {
 
     /*
     // copy eeprom filename to ram
@@ -136,7 +136,7 @@ void load_eeprom(void) {
 
     // clear flag to avoid oo
     toggle_clear();
-  }
+  //}
 #else
   mmc_updater();
 #endif
